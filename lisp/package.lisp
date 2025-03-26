@@ -39,7 +39,7 @@ be compiled with `.so' files found in one location, but run with ones from anoth
                (:linux "/usr/lib/")
                (t "lib/"))))
     (load-shared-object (merge-pathnames "liblisp-raylib.so" dir) :dont-save t)
-    (load-shared-object (merge-pathnames "liblisp-shim.so" dir) :dont-save t)))
+    (load-shared-object (merge-pathnames "liblisp-raylib-shim.so" dir) :dont-save t)))
 
 (load-shared-objects)
 
