@@ -1,0 +1,56 @@
+#+title: Raylib
+
+This library provides hand-written FFI bindings to [[https://github.com/raysan5/raylib/][Raylib]] for SBCL and ECL.
+
+Writing them by hand and avoiding CFFI has proven to:
+
+- have fewer dependencies
+- avoid runtime issues involving ASDF / UIOP
+- have much better performance
+
+Keep in mind, however, that since these bindings are hand-written, not all
+functions are available. 
+
+* Table of Contents :TOC_5_gh:noexport:
+- [[#compilation][Compilation]]
+  - [[#shared-objects][Shared Objects]]
+  - [[#other-dependencies][Other Dependencies]]
+  - [[#test-run][Test Run]]
+- [[#compiler-notes][Compiler Notes]]
+  - [[#sbcl][SBCL]]
+  - [[#ecl][ECL]]
+- [[#creating-release-builds][Creating Release Builds]]
+
+* Compilation
+
+** Shared Objects
+
+The Raylib C code has been vendored into this repository. To build it,
+as well as the "shim" code necessary to work around Raylib's pattern
+of passing all structs by-value, do:
+
+#+begin_example
+make
+#+end_example
+
+This will produce =liblisp-raylib.so= and =liblisp-raylib-shim.so= in =lib/=.
+
+** Other Dependencies
+
+Luckily there is only one other dependency: =trivial-garbage=. You can fetch it
+with [[https://github.com/fosskers/vend][vend]] or similar tools:
+
+#+begin_example
+vend get
+#+end_example
+
+** Test Run
+
+Once the =raylib= system builds and loads, you can test it with the small game
+loop sample at the bottom of the =package.lisp= file. If a window opens and you
+see the FPS counter, then it works. Press ESC to close the window.
+
+* Compiler Notes
+** SBCL
+** ECL
+* Creating Release Builds
