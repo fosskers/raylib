@@ -19,7 +19,9 @@ functions are available.
 - [[#compiler-notes][Compiler Notes]]
   - [[#sbcl][SBCL]]
   - [[#ecl][ECL]]
-- [[#creating-release-builds][Creating Release Builds]]
+- [[#depending-on-this][Depending on This]]
+  - [[#downstream-makefile][Downstream Makefile]]
+  - [[#creating-release-builds][Creating Release Builds]]
 
 * Compilation
 
@@ -53,4 +55,32 @@ see the FPS counter, then it works. Press ESC to close the window.
 * Compiler Notes
 ** SBCL
 ** ECL
-* Creating Release Builds
+* Depending on This
+** Downstream Makefile
+
+Your =Makefile= in a project that depends on this could look this:
+
+#+begin_src makefile
+PLATFORM ?= PLATFORM_DESKTOP_GLFW
+
+dev: lib/ lib/liblisp-raylib.so lib/liblisp-raylib-shim.so
+
+lib/:
+	mkdir lib/
+
+lib/liblisp-raylib.so:
+	cd vendored/raylib/ && $(MAKE) PLATFORM=$(PLATFORM)
+	cp vendored/raylib/lib/liblisp-raylib.so lib/
+
+lib/liblisp-raylib-shim.so: lib/liblisp-raylib.so
+	cp vendored/raylib/lib/liblisp-raylib-shim.so lib/
+
+clean:
+	rm -rf lib/
+	cd vendored/raylib/ && $(MAKE) clean
+#+end_src
+
+This copies the underlying =.so= files into a =lib/= local to your application, so
+that when the =raylib= system loads, it will find them where it expects.
+
+** Creating Release Builds
