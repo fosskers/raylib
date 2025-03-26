@@ -38,8 +38,8 @@ be compiled with `.so' files found in one location, but run with ones from anoth
   (let ((dir (case target
                (:linux "/usr/lib/")
                (t "lib/"))))
-    (load-shared-object (merge-pathnames "libbigsky-raylib.so" dir) :dont-save t)
-    (load-shared-object (merge-pathnames "libbigsky-shim.so" dir) :dont-save t)))
+    (load-shared-object (merge-pathnames "liblisp-raylib.so" dir) :dont-save t)
+    (load-shared-object (merge-pathnames "liblisp-shim.so" dir) :dont-save t)))
 
 (load-shared-objects)
 
@@ -91,7 +91,7 @@ be compiled with `.so' files found in one location, but run with ones from anoth
 (progn
   (let ((colour (make-color :r 255 :g 255 :b 255 :a 255)))
     (init-window 300 300 "hello!")
-    (set-target-fps 10000)
+    (set-target-fps 100)
     (loop while (not (window-should-close))
           do (progn (begin-drawing)
                     (clear-background colour)
