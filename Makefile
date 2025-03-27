@@ -1,9 +1,11 @@
 PLATFORM ?= PLATFORM_DESKTOP_GLFW
 
-dev: lib/ lib/liblisp-raylib.so lib/liblisp-raylib-shim.so raylib.h
+dev: lib/ lib/liblisp-raylib.so lib/liblisp-raylib-shim.so raylib.h shim.h
 
 lib/:
 	mkdir lib/
+
+ecl: dev lib/liblisp-raylib.so.550
 
 lib/liblisp-raylib.so.550:
 	ln -s liblisp-raylib.so lib/liblisp-raylib.so.550
@@ -22,7 +24,10 @@ c/raylib.h:
 raylib.h:
 	ln -s vendored/raylib-c/src/raylib.h raylib.h
 
+shim.h:
+	ln -s c/shim.h shim.h
+
 clean:
-	-rm raylib.h c/raylib.h
+	-rm raylib.h shim.h c/raylib.h
 	rm -rf lib/
 	cd vendored/raylib-c/src/ && $(MAKE) clean

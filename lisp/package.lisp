@@ -1,5 +1,5 @@
 (defpackage raylib
-  (:use :cl :sb-alien)
+  (:use :cl #+sbcl :sb-alien)
   (:local-nicknames (#:tg #:trivial-garbage))
   ;; --- Types --- ;;
   (:export #:vector2 #:make-vector2 #:vector2-x #:vector2-y
@@ -25,11 +25,13 @@
            #:check-collision-recs #:check-collision-point-rec
            #:get-frame-time)
   ;; --- Library Loading --- ;;
+  #+sbcl
   (:export #:load-shared-objects)
   (:documentation "A light wrapping of necessary Raylib types and functions."))
 
 (in-package :raylib)
 
+#+sbcl
 (defun load-shared-objects (&key (target nil))
   "Dynamically load the necessary `.so' files. This is wrapped as a function so that
 downstream callers can call it again as necessary when the Lisp Image is being
@@ -41,7 +43,15 @@ be compiled with `.so' files found in one location, but run with ones from anoth
     (load-shared-object (merge-pathnames "liblisp-raylib.so" dir) :dont-save t)
     (load-shared-object (merge-pathnames "liblisp-raylib-shim.so" dir) :dont-save t)))
 
+#+sbcl
 (load-shared-objects)
+
+;; NOTE: 2025-01-03 We preload the shared libraries here to ensure that all functions
+;; are already visible when we start to reference them in other files.
+#+ecl
+(progn
+  (ffi:load-foreign-library #p"lib/liblisp-raylib.so")
+  (ffi:load-foreign-library #p"lib/liblisp-raylib-shim.so"))
 
 ;; --- Keyboard and Gamepad --- ;;
 
