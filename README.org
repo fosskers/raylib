@@ -9,7 +9,8 @@ Writing them by hand and avoiding CFFI has proven to:
 - have much better performance
 
 Keep in mind, however, that since these bindings are hand-written, not all
-functions are available. 
+functions are available. There may also occasionally be drift between the SBCL
+and ECL as well.
 
 * Table of Contents :TOC_5_gh:noexport:
 - [[#compilation][Compilation]]
@@ -18,7 +19,19 @@ functions are available.
   - [[#test-run][Test Run]]
 - [[#compiler-notes][Compiler Notes]]
   - [[#sbcl][SBCL]]
+    - [[#loading][Loading]]
+    - [[#binding-techniques][Binding Techniques]]
+      - [[#types-and-construction][Types and Construction]]
+      - [[#field-access][Field Access]]
+      - [[#booleans][Booleans]]
   - [[#ecl][ECL]]
+    - [[#loading-1][Loading]]
+    - [[#binding-techniques-1][Binding Techniques]]
+      - [[#headers][Headers]]
+      - [[#types-and-construction-1][Types and Construction]]
+      - [[#freeing-memory][Freeing Memory]]
+      - [[#field-access-1][Field Access]]
+      - [[#booleans-1][Booleans]]
 - [[#depending-on-this][Depending on This]]
   - [[#downstream-makefile][Downstream Makefile]]
   - [[#creating-release-builds][Creating Release Builds]]
@@ -53,8 +66,235 @@ loop sample at the bottom of the =package.lisp= file. If a window opens and you
 see the FPS counter, then it works. Press ESC to close the window.
 
 * Compiler Notes
+
+As mentioned, this library does not use CFFI, a "convenience" library generally
+advertised to simplify the process of binding to C libraries. Convenient though
+it is, it comes at a cost I deemed unacceptable for game development. Hence it
+was necessary to crack open the compiler manuals and write the bindings
+separately for each compiler. It's honestly not that much work, especially if
+you know you'll only ever bind to a subset of the entire underlying API.
+
 ** SBCL
+
+Despite being a Lisp-in-Lisp compiler, its C handling is excellent.
+
+*** Loading
+
+The SBCL variant builds and loads as-is via a usual =asdf:load-system=.
+
+If you alter the bindings during development, it's enough to dynamically call
+the =load-shared-objects= function to update what's in your running image.
+
+*** Binding Techniques
+
+**** Types and Construction
+
+Let's observe how the =Vector2= type and its constructor =_MakeVector2= are bound.
+
+"Wait a minute," I hear you thinking, "Raylib is C - it has no special
+constructor for =Vector2=." And you'd be right: =_MakeVector2= is a shim function
+that heap-allocates a =Vector2= for us and returns the pointer.
+
+#+begin_src c
+Vector2 *_MakeVector2(float x, float y) {
+  Vector2 *v = malloc(sizeof(Vector2));
+
+  v->x = x;
+  v->y = y;
+
+  return v;
+}
+#+end_src
+
+"Hold on," you pipe up again, "why pointers? Raylib passes everything around
+by-value." Right again. Unfortunately, neither SBCL nor ECL support by-value
+struct passing at the moment. So instead we do everything with pointers
+to the structs we need:
+
+#+begin_src lisp
+(define-alien-type nil
+    (struct vector2-raw
+            (x float)
+            (y float)))
+
+(define-alien-routine ("_MakeVector2" make-vector2-raw) (* (struct vector2-raw))
+  (x float)
+  (y float))
+#+end_src
+
+This isn't quite useful, as we can't easily access the inner fields without
+arcane calls, nor does the Garbage Collector know what to do with this. We wrap
+some more:
+
+#+begin_src lisp
+(defstruct (vector2 (:constructor @vector2))
+  (pointer nil :type (alien (* (struct vector2-raw
+                                       (x single-float :offset 0)
+                                       (y single-float :offset 32))))))
+
+(declaim (ftype (function (&key (:x real) (:y real)) vector2) make-vector2))
+(defun make-vector2 (&key x y)
+  (let* ((ptr (make-vector2-raw (float x) (float y)))
+         (v   (@vector2 :pointer ptr)))
+    (tg:finalize v (lambda () (free-alien ptr)))))
+#+end_src
+
+Three things to note:
+
+1. It is critical for SBCL that the =:offset= values are set correctly within the
+   type hint. Otherwise it has to do a lot of guessing at runtime and you'll see
+   a big performance hit.
+2. We see =trivial-garbage:finalize= in action. This ensures that as our wrapper
+   CL struct is getting cleaned up, it will free the underlying C memory.
+3. We add a =declaim= mostly for documentation purposes, but also to express for
+   convenience that this function can flexibly accept most number types as
+   input, enabling:
+
+#+begin_src lisp
+(raylib:make-vector2 :x 0 :y 0)  ; No need to pass 0.0
+#+end_src
+
+**** Field Access
+
+We use a macro:
+
+#+begin_src lisp
+(defmacro vector2-x (v)
+  "The X slot of a `Vector2'."
+  `(slot (vector2-pointer ,v) 'x))
+#+end_src
+
+Since =slot= can be used with =setf= as well, =vector2-x= (etc.) naturally becomes
+both a getter and a setter.
+
+Other Raylib functions that require a =Vector2= as input are bound in such a way
+that they accept our wrapped =vector2= and internally unwrap it before calling
+down into C.
+**** Booleans
+
+When interpreting a C bool back into Lisp, SBCL needs to be told exactly how
+big, in bits, the underlying number value was. For =stdlib= bools, this is 8 bits:
+
+#+begin_src lisp
+(define-alien-routine ("IsGamepadAvailable" is-gamepad-available) (boolean 8)
+  (gamepad int))
+#+end_src
+
+Otherwise you will get very strange overflowing behaviour, and calls that should
+yield =T= will not.
+
 ** ECL
+
+ECL is a bit more sensitive than SBCL, but still fully functional if you know
+what to be careful of.
+
+*** Loading
+
+The =libffi= system dependency incurs a performance penalty. Further, with future
+aims of compiling to WASM, we wish to avoid this dependency altogether. Hence
+our ECL-based bindings are entirely "static" and avoid its =:dffi= feature.
+
+This means that during development, we need to load our system in a special way:
+
+#+begin_src lisp
+(progn
+  (let* ((path (merge-pathnames "lib/" (ext:getcwd)))
+         (args (format nil "-Wl,-rpath,~a -L~a" path path)))
+    (setf c:*user-linker-flags* args)
+    (setf c:*user-linker-libs*  "-llisp-raylib -llisp-raylib-shim"))
+  (asdf:load-system :raylib :force t))
+#+end_src
+
+This code can be found in the =repl.lisp= file, which you can run to load these
+bindings in the expected way. After that, develop as normal.
+
+*** Binding Techniques
+
+**** Headers
+
+ECL transforms our bindings directly into C code. If we're calling any external
+functions, we need to tell ECL about them. =clines= injects raw C into the
+resulting compiled file:
+
+#+begin_src lisp
+;; For access to my various `_Foo' functions.
+(ffi:clines "#include \"shim.h\"")
+;; For access to `free'.
+(ffi:clines "#include <stdlib.h>")
+#+end_src
+
+**** Types and Construction
+
+As with SBCL, let's look at how we bind to =Vector2=.
+
+#+begin_src lisp
+(ffi:def-struct vector2-raw
+    (x :float)
+  (y :float))
+
+(ffi:def-function ("_MakeVector2" make-vector2-raw)
+    ((x :float)
+     (y :float))
+  :returning (* vector2-raw))
+#+end_src
+
+These are actually macros that call down into similar primitives for injecting
+raw C right into the file.
+
+#+begin_src lisp
+(defstruct (vector2 (:constructor @vector2))
+  (pointer nil :type si:foreign-data))
+
+(defun make-vector2 (&key x y)
+  (let* ((ptr (make-vector2-raw x y))
+         (v   (@vector2 :pointer ptr)))
+    (tg:finalize v (lambda () (free! ptr)))))
+#+end_src
+
+Somewhat simpler than the SBCL, as we don't need to hand-hold the =:type= hint.
+Garbage Collection, however, requires special attention.
+
+**** Freeing Memory
+
+Note the =free!= within the finalizer above.
+
+#+begin_src lisp
+;; NOTE: 2025-01-03 This is highly bespoke and comes directly from the maintainer of ECL.
+(defun free! (ptr)
+  "A custom call to C's `free' that ensures everything is properly reset."
+  (ffi:c-inline (ptr) (:object) :void
+                "void *ptr = ecl_foreign_data_pointer_safe(#0);
+                 #0->foreign.size = 0;
+                 #0->foreign.data = NULL;
+                 free(ptr);" :one-liner nil))
+#+end_src
+
+It's magic but it works. Without this, you will get segfaults.
+
+**** Field Access
+
+#+begin_src lisp
+(defmacro vector2-x (v)
+  "The X slot of a `Vector2'."
+  `(ffi:get-slot-value (vector2-pointer ,v) 'vector2-raw 'x))
+#+end_src
+
+As with SBCL, this can be used as both a getter and a setter.
+
+**** Booleans
+
+ECL doesn't seem to interpret C =stblib= bools back into a friendly Lisp type, so
+we need to help it:
+
+#+begin_src lisp
+(ffi:def-function ("IsGamepadAvailable" is-gamepad-available-raw)
+    ((gamepad :int))
+  :returning :unsigned-byte)
+
+(defun is-gamepad-available (n)
+  (= 1 (is-gamepad-available-raw n)))
+#+end_src
+
 * Depending on This
 ** Downstream Makefile
 

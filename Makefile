@@ -1,12 +1,11 @@
 PLATFORM ?= PLATFORM_DESKTOP_GLFW
 
-dev: lib/ lib/liblisp-raylib.so lib/liblisp-raylib-shim.so raylib.h shim.h
+dev: lib/ lib/liblisp-raylib.so lib/liblisp-raylib-shim.so lib/liblisp-raylib.so.550 raylib.h shim.h
 
 lib/:
 	mkdir lib/
 
-ecl: dev lib/liblisp-raylib.so.550
-
+# For ECL.
 lib/liblisp-raylib.so.550:
 	ln -s liblisp-raylib.so lib/liblisp-raylib.so.550
 
