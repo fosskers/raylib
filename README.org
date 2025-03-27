@@ -12,6 +12,10 @@ Keep in mind, however, that since these bindings are hand-written, not all
 functions are available. There may also occasionally be drift between the SBCL
 and ECL as well.
 
+Games made with this:
+
+- [[https://github.com/fosskers/aero-fighter][Aero Fighter]] 
+
 * Table of Contents :TOC_5_gh:noexport:
 - [[#compilation][Compilation]]
   - [[#shared-objects][Shared Objects]]
