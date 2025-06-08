@@ -1,5 +1,4 @@
-*.h
 *.fasl
 *.fas
 *.so
-lib/*
+lib/
