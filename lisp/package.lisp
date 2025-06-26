@@ -40,15 +40,21 @@ be compiled with `.so' files found in one location, but run with ones from anoth
   (let ((dir (case target
                (:linux "/usr/lib/")
                (t "lib/"))))
-    (load-shared-object (merge-pathnames "liblisp-raylib.so" dir) :dont-save t)
-    (load-shared-object (merge-pathnames "liblisp-raylib-shim.so" dir) :dont-save t)))
+    #+linux
+    (progn
+      (load-shared-object (merge-pathnames "liblisp-raylib.so" dir) :dont-save t)
+      (load-shared-object (merge-pathnames "liblisp-raylib-shim.so" dir) :dont-save t))
+    #+win32
+    (progn
+      (load-shared-object (merge-pathnames "lisp-raylib.dll" dir) :dont-save t)
+      (load-shared-object (merge-pathnames "lisp-raylib-shim.dll" dir) :dont-save t))))
 
 #+sbcl
 (load-shared-objects)
 
 ;; NOTE: 2025-01-03 We preload the shared libraries here to ensure that all functions
 ;; are already visible when we start to reference them in other files.
-#+ecl
+#+(and ecl linux)
 (progn
   (ffi:load-foreign-library #p"lib/liblisp-raylib.so")
   (ffi:load-foreign-library #p"lib/liblisp-raylib-shim.so"))
