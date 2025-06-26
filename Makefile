@@ -30,3 +30,15 @@ clean:
 	-rm raylib.h shim.h c/raylib.h
 	rm -rf lib/
 	cd vendored/raylib-c/src/ && $(MAKE) clean
+
+# --- Windows --- #
+
+windows: lib/ lib/lisp-raylib.dll lib/lisp-raylib-shim.dll raylib.h shim.h
+
+lib/lisp-raylib.dll:
+	cd vendored/raylib-c/src/ && $(MAKE) PLATFORM=$(PLATFORM) PLATFORM_OS=WINDOWS CC=x86_64-w64-mingw32-gcc AR=x86_64-w64-mingw32-ar
+	mv vendored/raylib-c/src/lisp-raylib.dll vendored/raylib-c/src/liblisp-raylibdll.a lib/
+
+lib/lisp-raylib-shim.dll: c/shim.c c/raylib.h
+	cd c && x86_64-w64-mingw32-gcc -L"../lib" -llisp-raylib -O3 -fPIC -shared -o lisp-raylib-shim.dll shim.c
+	mv c/lisp-raylib-shim.dll lib/
