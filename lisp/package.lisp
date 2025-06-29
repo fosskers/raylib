@@ -65,20 +65,25 @@ be compiled with `.so' files found in one location, but run with ones from anoth
 ;; to reference enum values.
 (defun keyboard-key (kw)
   (case kw
+    ;; --- Directions --- ;;
     (:right 262)
     (:left  263)
     (:down  264)
     (:up    265)
-    (:w     87)
-    (:a     65)
-    (:s     83)
-    (:d     68)
+    ;; --- Control --- ;;
     (:space 32)
     (:tab   258)
     (:enter 257)
     (:shift 340)
+    ;; --- Numbers --- ;;
     (:zero  48)
     (:one   49)
+    ;; --- Letters --- ;;
+    (:w     87)
+    (:a     65)
+    (:s     83)
+    (:d     68)
+    (:r     82)
     (t (error "Unknown keyboard key: ~a" kw))))
 
 #++
