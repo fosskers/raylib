@@ -21,7 +21,8 @@
            #:load-sound #:unload-sound #:play-sound
            #:load-music-stream #:unload-music-stream #:is-music-stream-playing #:play-music-stream #:update-music-stream
            #:is-key-pressed #:is-key-down
-           #:is-gamepad-button-pressed #:is-gamepad-button-down #:get-gamepad-name #:is-gamepad-available
+           #:is-gamepad-button-pressed #:is-gamepad-button-down #:get-gamepad-name #:is-gamepad-available #:get-gamepad-button-pressed
+           #:get-gamepad-axis-count #:get-gamepad-axis-movement
            #:check-collision-recs #:check-collision-point-rec
            #:get-frame-time)
   ;; --- Library Loading --- ;;

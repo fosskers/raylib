@@ -430,11 +430,43 @@
 
 ;; --- Keyboard and Gamepad --- ;;
 
+(define-alien-routine ("IsKeyPressed" is-key-pressed) (boolean 8)
+  "Check if a key has been pressed once."
+  (key int))
+
+(define-alien-routine ("IsKeyDown" is-key-down) (boolean 8)
+  "Check if a key is being pressed."
+  (key int))
+
 (define-alien-routine ("GetGamepadName" get-gamepad-name) c-string
+  "The self-reported name of the given gamepad."
   (gamepad int))
 
 (define-alien-routine ("IsGamepadAvailable" is-gamepad-available) (boolean 8)
+  "Whether a particular gamepad ID corresponds to a usable gamepad."
   (gamepad int))
+
+(define-alien-routine ("GetGamepadButtonPressed" get-gamepad-button-pressed) int
+  "The currently pressed gamepad button.")
+
+(define-alien-routine ("IsGamepadButtonPressed" is-gamepad-button-pressed) (boolean 8)
+  "Check if a gamepad button has been pressed once."
+  (gamepad int)
+  (key int))
+
+(define-alien-routine ("IsGamepadButtonDown" is-gamepad-button-down) (boolean 8)
+  "Check if a gamepad button is being pressed."
+  (gamepad int)
+  (key int))
+
+(define-alien-routine ("GetGamepadAxisCount" get-gamepad-axis-count) int
+  "The number of stick axes a gamepad has. Each stick has two."
+  (gamepad int))
+
+(define-alien-routine ("GetGamepadAxisMovement" get-gamepad-axis-movement) float
+  "A value from -1 to 1."
+  (gamepad int)
+  (axis int))
 
 ;; --- Window --- ;;
 
@@ -505,26 +537,6 @@
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-line))
 (defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
   (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-pointer color)))
-
-;; --- Input --- ;;
-
-(define-alien-routine ("IsKeyPressed" is-key-pressed) (boolean 8)
-  "Check if a key has been pressed once."
-  (key int))
-
-(define-alien-routine ("IsKeyDown" is-key-down) (boolean 8)
-  "Check if a key is being pressed."
-  (key int))
-
-(define-alien-routine ("IsGamepadButtonPressed" is-gamepad-button-pressed) (boolean 8)
-  "Check if a gamepad button has been pressed once."
-  (gamepad int)
-  (key int))
-
-(define-alien-routine ("IsGamepadButtonDown" is-gamepad-button-down) (boolean 8)
-  "Check if a gamepad button is being pressed."
-  (gamepad int)
-  (key int))
 
 ;; --- Collision --- ;;
 
