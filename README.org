@@ -210,7 +210,9 @@ This means that during development, we need to load our system in a special way:
 #+end_src
 
 This code can be found in the =repl.lisp= file, which you can run to load these
-bindings in the expected way. After that, develop as normal.
+bindings in the expected way. After that, develop as normal. Keep in mind
+however that when you compile a new function, do so at the file-level (with =C-c
+C-k= or otherwise) at not at the individual function level (=C-c C-c=).
 
 *** Binding Techniques
 

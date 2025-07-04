@@ -324,6 +324,40 @@
 
 ;; --- Keyboard and Gamepad --- ;;
 
+(ffi:def-function ("IsKeyPressed" is-key-pressed-raw)
+    ((key :int))
+  ;; HACK: 2025-01-03 Bool.
+  :returning :unsigned-byte)
+
+(defun is-key-pressed (key)
+  (= 1 (is-key-pressed-raw key)))
+
+(ffi:def-function ("IsKeyDown" is-key-down-raw)
+    ((key :int))
+  ;; HACK: 2025-01-03 Bool.
+  :returning :unsigned-byte)
+
+(defun is-key-down (key)
+  (= 1 (is-key-down-raw key)))
+
+(ffi:def-function ("IsGamepadButtonPressed" is-gamepad-button-pressed-raw)
+    ((gamepad :int)
+     (key :int))
+  ;; HACK: 2025-01-03 Bool.
+  :returning :unsigned-byte)
+
+(defun is-gamepad-button-pressed (gamepad key)
+  (= 1 (is-gamepad-button-pressed-raw gamepad key)))
+
+(ffi:def-function ("IsGamepadButtonDown" is-gamepad-button-down-raw)
+    ((gamepad :int)
+     (key :int))
+  ;; HACK: 2025-01-03 Bool.
+  :returning :unsigned-byte)
+
+(defun is-gamepad-button-down (gamepad key)
+  (= 1 (is-gamepad-button-down-raw gamepad key)))
+
 (ffi:def-function ("GetGamepadName" get-gamepad-name)
     ((gamepad :int))
   ;; FIXME: 2025-01-03 Deallocation might become an issue. I could either:
@@ -339,6 +373,15 @@
 
 (defun is-gamepad-available (n)
   (= 1 (is-gamepad-available-raw n)))
+
+(ffi:def-function ("GetGamepadAxisCount" get-gamepad-axis-count)
+    ((gamepad :int))
+  :returning :int)
+
+(ffi:def-function ("GetGamepadAxisMovement" get-gamepad-axis-movement)
+    ((gamepad :int)
+     (axis :int))
+  :returning :float)
 
 ;; --- Window --- ;;
 
@@ -411,42 +454,6 @@
 
 (defun draw-rectangle (pos-x pos-y width height color)
   (draw-rectangle-raw pos-x pos-y width height (color-pointer color)))
-
-;; --- Input --- ;;
-
-(ffi:def-function ("IsKeyPressed" is-key-pressed-raw)
-    ((key :int))
-  ;; HACK: 2025-01-03 Bool.
-  :returning :unsigned-byte)
-
-(defun is-key-pressed (key)
-  (= 1 (is-key-pressed-raw key)))
-
-(ffi:def-function ("IsKeyDown" is-key-down-raw)
-    ((key :int))
-  ;; HACK: 2025-01-03 Bool.
-  :returning :unsigned-byte)
-
-(defun is-key-down (key)
-  (= 1 (is-key-down-raw key)))
-
-(ffi:def-function ("IsGamepadButtonPressed" is-gamepad-button-pressed-raw)
-    ((gamepad :int)
-     (key :int))
-  ;; HACK: 2025-01-03 Bool.
-  :returning :unsigned-byte)
-
-(defun is-gamepad-button-pressed (gamepad key)
-  (= 1 (is-gamepad-button-pressed-raw gamepad key)))
-
-(ffi:def-function ("IsGamepadButtonDown" is-gamepad-button-down-raw)
-    ((gamepad :int)
-     (key :int))
-  ;; HACK: 2025-01-03 Bool.
-  :returning :unsigned-byte)
-
-(defun is-gamepad-button-down (gamepad key)
-  (= 1 (is-gamepad-button-down-raw gamepad key)))
 
 ;; --- Collision --- ;;
 

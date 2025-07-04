@@ -1,3 +1,10 @@
+;; NOTE: 2025-07-05 Happy Birthday!
+;;
+;; Remember, if you're having issues loading this under ECL, load it via the
+;; form found in `repl.lisp', not via automated system loading through Sly! The
+;; linker flags need to be set properly before this can be loaded, even when
+;; doing REPL developement.
+
 (defpackage raylib
   (:use :cl #+sbcl :sb-alien)
   (:local-nicknames (#:tg #:trivial-garbage))
@@ -53,8 +60,8 @@ be compiled with `.so' files found in one location, but run with ones from anoth
 #+sbcl
 (load-shared-objects)
 
-;; NOTE: 2025-01-03 We preload the shared libraries here to ensure that all functions
-;; are already visible when we start to reference them in other files.
+;; NOTE: 2025-01-03 We preload the shared libraries here to ensure that all
+;; functions are already visible when we start to reference them in other files.
 #+(and ecl linux)
 (progn
   (ffi:load-foreign-library #p"lib/liblisp-raylib.so")
@@ -113,7 +120,7 @@ be compiled with `.so' files found in one location, but run with ones from anoth
     (t (error "Unknown gamepad button: ~a" kw))))
 
 ;; Sanity test: This should work as-is under either compiler.
-#++
+#+nil
 (progn
   (let ((colour (make-color :r 255 :g 255 :b 255 :a 255)))
     (init-window 300 300 "hello!")
