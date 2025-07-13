@@ -86,6 +86,14 @@ be compiled with `.so' files found in one location, but run with ones from anoth
     ;; --- Numbers --- ;;
     (:zero  48)
     (:one   49)
+    (:two   50)
+    (:three 51)
+    (:four  52)
+    (:five  53)
+    (:six   54)
+    (:seven 55)
+    (:eight 56)
+    (:nine  57)
     ;; --- Letters --- ;;
     (:w     87)
     (:a     65)
