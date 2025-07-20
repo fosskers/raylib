@@ -441,6 +441,7 @@
      (color (* color-raw)))
   :returning :void)
 
+(declaim (ftype (function (string fixnum fixnum fixnum color) null) draw-text))
 (defun draw-text (text pos-x pos-y font-size color)
   (draw-text-raw text pos-x pos-y font-size (color-pointer color)))
 
@@ -452,8 +453,30 @@
      (color (* color-raw)))
   :returning :void)
 
+(declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-rectangle))
 (defun draw-rectangle (pos-x pos-y width height color)
   (draw-rectangle-raw pos-x pos-y width height (color-pointer color)))
+
+(ffi:def-function ("_DrawLine" draw-line-raw)
+    ((start-pos-x :int)
+     (start-pos-y :int)
+     (end-pos-x :int)
+     (end-pos-y :int)
+     (color (* color-raw)))
+  :returning :void)
+
+(declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-line))
+(defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
+  (draw-line-raw start-pos-x start-pos-x end-pos-x end-pos-y (color-pointer color)))
+
+(ffi:def-function ("_DrawPixel" draw-pixel-raw)
+    ((pos-x :int)
+     (pos-y :int)
+     (color (* color-raw))))
+
+(declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
+(defun draw-pixel (pos-x pos-y color)
+  (draw-pixel-raw pos-x pos-x (color-pointer color)))
 
 ;; --- Collision --- ;;
 

@@ -192,6 +192,11 @@ void _DrawLine(int startPosX, int startPosY, int endPosX, int endPosY,
   DrawLine(startPosX, startPosY, endPosX, endPosY, stack);
 }
 
+void _DrawPixel(int posX, int posY, Color *color) {
+  Color stack = *color;
+  DrawPixel(posX, posY, stack);
+}
+
 // --- Collision --- //
 
 bool _CheckCollisionRecs(Rectangle *rec1, Rectangle *rec2) {

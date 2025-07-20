@@ -538,6 +538,15 @@
 (defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
   (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-pointer color)))
 
+(define-alien-routine ("_DrawPixel" draw-pixel-raw) void
+  (pos-x int)
+  (pos-y int)
+  (color (* (struct color-raw))))
+
+(declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
+(defun draw-pixel (pos-x pos-y color)
+  (draw-pixel-raw pos-x pos-y (color-pointer color)))
+
 ;; --- Collision --- ;;
 
 (define-alien-routine ("_CheckCollisionRecs" check-collision-recs-raw) (boolean 8)

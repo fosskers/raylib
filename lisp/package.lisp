@@ -23,7 +23,7 @@
            #:set-target-fps #:window-should-close
            #:begin-drawing #:end-drawing
            #:begin-mode-2d #:end-mode-2d
-           #:clear-background #:draw-fps #:draw-text #:draw-rectangle #:draw-line
+           #:clear-background #:draw-fps #:draw-text #:draw-rectangle #:draw-line #:draw-pixel
            #:load-texture #:unload-texture #:is-texture-valid #:draw-texture #:draw-texture-v #:draw-texture-rec
            #:load-sound #:unload-sound #:play-sound
            #:load-music-stream #:unload-music-stream #:is-music-stream-playing #:play-music-stream #:update-music-stream
