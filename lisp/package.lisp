@@ -13,6 +13,7 @@
            #:rectangle #:make-rectangle #:rectangle-x #:rectangle-y #:rectangle-width #:rectangle-height
            #:color #:make-color #:color-alpha
            #:texture #:texture-width #:texture-height
+           #:font
            #:audio-stream #:sound
            #:music #:music-looping
            #:camera-2d #:make-camera-2d #:camera-2d-offset #:camera-2d-target #:get-world-to-screen-2d
@@ -23,10 +24,11 @@
            #:set-target-fps #:window-should-close
            #:begin-drawing #:end-drawing
            #:begin-mode-2d #:end-mode-2d
-           #:clear-background #:draw-fps #:draw-text #:draw-rectangle #:draw-line #:draw-pixel
+           #:clear-background #:draw-fps #:draw-text #:draw-text-ex #:draw-rectangle #:draw-line #:draw-pixel
            #:load-texture #:unload-texture #:is-texture-valid #:draw-texture #:draw-texture-v #:draw-texture-rec
            #:load-sound #:unload-sound #:play-sound
            #:load-music-stream #:unload-music-stream #:is-music-stream-playing #:play-music-stream #:update-music-stream
+           #:load-font #:unload-font
            #:is-key-pressed #:is-key-down
            #:is-gamepad-button-pressed #:is-gamepad-button-down #:get-gamepad-name #:is-gamepad-available #:get-gamepad-button-pressed
            #:get-gamepad-axis-count #:get-gamepad-axis-movement

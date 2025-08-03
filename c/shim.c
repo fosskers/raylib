@@ -181,6 +181,14 @@ void _DrawText(const char *text, int posX, int posY, int fontSize,
   DrawText(text, posX, posY, fontSize, stack);
 }
 
+void _DrawTextEx(Font *font, const char *text, Vector2 *position,
+                 float fontSize, float spacing, Color *tint) {
+  Font f_stack = *font;
+  Vector2 v_stack = *position;
+  Color c_stack = *tint;
+  DrawTextEx(f_stack, text, v_stack, fontSize, spacing, c_stack);
+}
+
 void _DrawRectangle(int posX, int posY, int width, int height, Color *color) {
   Color stack = *color;
   DrawRectangle(posX, posY, width, height, stack);
@@ -209,4 +217,19 @@ bool _CheckCollisionPointRec(Vector2 *point, Rectangle *rec) {
   Vector2 a = *point;
   Rectangle b = *rec;
   return CheckCollisionPointRec(a, b);
+}
+
+// --- Fonts --- //
+
+Font *_LoadFont(const char *fileName) {
+  Font *heap = malloc(sizeof(Font));
+  Font stack = LoadFont(fileName);
+  *heap = stack;
+
+  return heap;
+}
+
+void _UnloadFont(Font *font) {
+  Font stack = *font;
+  UnloadFont(stack);
 }

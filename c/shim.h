@@ -66,6 +66,9 @@ void _BeginMode2D(Camera2D *camera);
 void _DrawText(const char *text, int posX, int posY, int fontSize,
                Color *color);
 
+void _DrawTextEx(Font *font, const char *text, Vector2 *position,
+                 float fontSize, float spacing, Color *tint);
+
 void _DrawRectangle(int posX, int posY, int width, int height, Color *color);
 
 void _DrawLine(int startPosX, int startPosY, int endPosX, int endPosY,
@@ -76,5 +79,11 @@ void _DrawPixel(int posX, int posY, Color *color);
 // --- Collision --- //
 
 bool _CheckCollisionRecs(Rectangle *rec1, Rectangle *rec2);
+
+// --- Fonts --- //
+
+Font *_LoadFont(const char *fileName);
+
+void _UnloadFont(Font *font);
 
 #endif // SHIM_H_

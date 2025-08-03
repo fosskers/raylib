@@ -514,7 +514,21 @@
 
 (declaim (ftype (function (string fixnum fixnum fixnum color) null) draw-text))
 (defun draw-text (text pos-x pos-y font-size color)
+  "Draw text using the default font."
   (draw-text-raw text pos-x pos-y font-size (color-pointer color)))
+
+(define-alien-routine ("_DrawTextEx" draw-text-ex-raw) void
+  (font (* (struct font-raw)))
+  (text c-string)
+  (position (* (struct vector2-raw)))
+  (font-size single-float)
+  (spacing single-float)
+  (tint (* (struct color-raw))))
+
+(declaim (ftype (function (font string vector2 single-float single-float color)) draw-text-ex))
+(defun draw-text-ex (font text position font-size spacing tint)
+  "Draw text using a `font' and additional parameters."
+  (draw-text-ex-raw (font-pointer font) text (vector2-pointer position) font-size spacing (color-pointer tint)))
 
 (define-alien-routine ("_DrawRectangle" draw-rectangle-raw) void
   (pos-x int)
@@ -575,3 +589,41 @@
 
 (define-alien-routine ("GetFrameTime" get-frame-time) float
   "Get time in seconds for last frame drawn (delta time).")
+
+;; --- Fonts --- ;;
+
+(define-alien-type nil
+    (struct font-raw
+            (base-size int)
+            (glyph-count int)
+            (glyph-padding int)
+            (texture (struct texture-raw))
+            (recs (* t))
+            (glyphs (* t))))
+
+(defstruct (font (:constructor @font))
+  (pointer nil :type alien))
+
+;; TODO: 2025-08-01 Start here. Wrap this in a Lispy `font' struct, then expose
+;; the various font-related functions. Remember also `DrawTextEx', which needs a
+;; `Font', and the various shim entries.
+;;
+;; Also extend the basic test example in `package' to load a font and print?
+
+(define-alien-routine ("_LoadFont" load-font-raw) (* (struct font-raw))
+  (file-name c-string))
+
+(declaim (ftype (function ((or string pathname)) font) load-font))
+(defun load-font (file-name)
+  "Load a font from a file into GPU memory."
+  (let* ((pointer (load-font-raw (namestring file-name)))
+         (font (@font :pointer pointer)))
+    (tg:finalize font (lambda () (free-alien pointer)))))
+
+(define-alien-routine ("_UnloadFont" unload-font-raw) void
+  (font (* (struct font-raw))))
+
+(declaim (ftype (function (font)) unload-font))
+(defun unload-font (font)
+  "Unload a font from GPU memory."
+  (unload-font-raw (font-pointer font)))
