@@ -84,6 +84,11 @@ bool _CheckCollisionRecs(Rectangle *rec1, Rectangle *rec2);
 
 Font *_LoadFont(const char *fileName);
 
+Font *_LoadFontEx(const char *fileName, int fontSize, int *codepoints,
+                  int codepointCount);
+
 void _UnloadFont(Font *font);
+
+bool _IsFontValid(Font *font);
 
 #endif // SHIM_H_

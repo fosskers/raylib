@@ -229,7 +229,21 @@ Font *_LoadFont(const char *fileName) {
   return heap;
 }
 
+Font *_LoadFontEx(const char *fileName, int fontSize, int *codepoints,
+                  int codepointCount) {
+  Font *heap = malloc(sizeof(Font));
+  Font stack = LoadFontEx(fileName, fontSize, codepoints, codepointCount);
+  *heap = stack;
+
+  return heap;
+}
+
 void _UnloadFont(Font *font) {
   Font stack = *font;
   UnloadFont(stack);
+}
+
+bool _IsFontValid(Font *font) {
+  Font stack = *font;
+  return IsFontValid(stack);
 }

@@ -224,6 +224,7 @@
 
 (declaim (ftype (function (texture) boolean) is-texture-valid))
 (defun is-texture-valid (texture)
+  "Did a given `texture' load correctly?"
   (is-texture-valid-raw (texture-pointer texture)))
 
 (define-alien-routine ("_DrawTexture" draw-texture-raw) void
@@ -261,6 +262,67 @@
                         (rectangle-pointer source)
                         (vector2-pointer position)
                         (color-pointer tint)))
+
+;; --- Fonts --- ;;
+
+(define-alien-type nil
+    (struct font-raw
+            (base-size int)
+            (glyph-count int)
+            (glyph-padding int)
+            (texture (struct texture-raw))
+            (recs (* t))
+            (glyphs (* t))))
+
+(defstruct (font (:constructor @font))
+  (pointer nil :type alien))
+
+(define-alien-routine ("_LoadFont" load-font-raw) (* (struct font-raw))
+  (file-name c-string))
+
+(declaim (ftype (function ((or string pathname)) font) load-font))
+(defun load-font (file-name)
+  "Load a font from a file into GPU memory."
+  (let* ((pointer (load-font-raw (namestring file-name)))
+         (font (@font :pointer pointer)))
+    (tg:finalize font (lambda () (free-alien pointer)))))
+
+(define-alien-routine ("_LoadFontEx" load-font-ex-raw) (* (struct font-raw))
+  (file-name c-string)
+  (font-size int)
+  (codepoints (* int))
+  (codepoint-count int))
+
+(declaim (ftype (function ((or string pathname) fixnum (vector integer)) font) load-font-ex))
+(defun load-font-ex (file-name font-size codepoints)
+  "Load a font with additional parameters, particularly those pertaining to UTF-8
+codepoints. The `codepoints' vector should contain the result of `char-code' for
+every character you intend to print in your game."
+  (let* ((count (length codepoints))
+         (array (make-alien int count)))
+    ;; FIXME: 2025-08-07 There may be a way to avoid this manual copy.
+    (loop :for i :from 0 :below count
+          :do (setf (deref array i) (aref codepoints i)))
+    (let* ((point (load-font-ex-raw (namestring file-name) font-size array count))
+           (font  (@font :pointer point)))
+      (free-alien array)
+      (tg:finalize font (lambda () (free-alien point))))))
+
+(define-alien-routine ("_UnloadFont" unload-font-raw) void
+  (font (* (struct font-raw))))
+
+(declaim (ftype (function (font)) unload-font))
+(defun unload-font (font)
+  "Unload a font from GPU memory."
+  (unload-font-raw (font-pointer font)))
+
+(define-alien-routine ("_IsFontValid" is-font-valid-raw) (boolean 8)
+  (font (* (struct font-raw))))
+
+(declaim (ftype (function (font) boolean) is-font-valid))
+(defun is-font-valid (font)
+  "Did a given `font' load correctly?"
+  (is-font-valid-raw (font-pointer font)))
 
 ;; --- Sounds and Music --- ;;
 
@@ -525,10 +587,14 @@
   (spacing single-float)
   (tint (* (struct color-raw))))
 
-(declaim (ftype (function (font string vector2 single-float single-float color)) draw-text-ex))
+;; TODO: 2025-08-04 Start here. Pass `real' instead of floats to allow for
+;; flexible calling. Then continue on with loading and displaying fonts
+;; in the example within `package'. Then ECL support.
+
+(declaim (ftype (function (font string vector2 real real color)) draw-text-ex))
 (defun draw-text-ex (font text position font-size spacing tint)
   "Draw text using a `font' and additional parameters."
-  (draw-text-ex-raw (font-pointer font) text (vector2-pointer position) font-size spacing (color-pointer tint)))
+  (draw-text-ex-raw (font-pointer font) text (vector2-pointer position) (float font-size) (float spacing) (color-pointer tint)))
 
 (define-alien-routine ("_DrawRectangle" draw-rectangle-raw) void
   (pos-x int)
@@ -589,41 +655,3 @@
 
 (define-alien-routine ("GetFrameTime" get-frame-time) float
   "Get time in seconds for last frame drawn (delta time).")
-
-;; --- Fonts --- ;;
-
-(define-alien-type nil
-    (struct font-raw
-            (base-size int)
-            (glyph-count int)
-            (glyph-padding int)
-            (texture (struct texture-raw))
-            (recs (* t))
-            (glyphs (* t))))
-
-(defstruct (font (:constructor @font))
-  (pointer nil :type alien))
-
-;; TODO: 2025-08-01 Start here. Wrap this in a Lispy `font' struct, then expose
-;; the various font-related functions. Remember also `DrawTextEx', which needs a
-;; `Font', and the various shim entries.
-;;
-;; Also extend the basic test example in `package' to load a font and print?
-
-(define-alien-routine ("_LoadFont" load-font-raw) (* (struct font-raw))
-  (file-name c-string))
-
-(declaim (ftype (function ((or string pathname)) font) load-font))
-(defun load-font (file-name)
-  "Load a font from a file into GPU memory."
-  (let* ((pointer (load-font-raw (namestring file-name)))
-         (font (@font :pointer pointer)))
-    (tg:finalize font (lambda () (free-alien pointer)))))
-
-(define-alien-routine ("_UnloadFont" unload-font-raw) void
-  (font (* (struct font-raw))))
-
-(declaim (ftype (function (font)) unload-font))
-(defun unload-font (font)
-  "Unload a font from GPU memory."
-  (unload-font-raw (font-pointer font)))

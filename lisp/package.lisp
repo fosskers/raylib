@@ -28,7 +28,7 @@
            #:load-texture #:unload-texture #:is-texture-valid #:draw-texture #:draw-texture-v #:draw-texture-rec
            #:load-sound #:unload-sound #:play-sound
            #:load-music-stream #:unload-music-stream #:is-music-stream-playing #:play-music-stream #:update-music-stream
-           #:load-font #:unload-font
+           #:load-font #:load-font-ex #:unload-font #:is-font-valid
            #:is-key-pressed #:is-key-down
            #:is-gamepad-button-pressed #:is-gamepad-button-down #:get-gamepad-name #:is-gamepad-available #:get-gamepad-button-pressed
            #:get-gamepad-axis-count #:get-gamepad-axis-movement
@@ -132,12 +132,23 @@ be compiled with `.so' files found in one location, but run with ones from anoth
 ;; Sanity test: This should work as-is under either compiler.
 #+nil
 (progn
-  (let ((colour (make-color :r 255 :g 255 :b 255 :a 255)))
-    (init-window 300 300 "hello!")
+  (init-window 300 300 "hello!")
+  (let* ((white (make-color :r 255 :g 255 :b 255 :a 255))
+         (black (make-color :r 0 :g 0 :b 0 :a 255))
+         (text  "Café 日本語!")
+         (points (concatenate 'vector (mapcar #'char-code (concatenate 'list text))))
+         (font  (load-font-ex #p"/usr/share/fonts/OTF/ipag.ttf" 20 points))
+         (pos   (make-vector2 :x 100 :y 100)))
+    (unless (is-font-valid font)
+      (error "Invalid font!"))
     (set-target-fps 100)
     (loop while (not (window-should-close))
           do (progn (begin-drawing)
-                    (clear-background colour)
+                    (clear-background white)
+                    (draw-text "Café" 50 50 20 black)
+                    (draw-text-ex font "日本語 Café" pos 20 5 black)
                     (draw-fps 0 0)
                     (end-drawing)))
+    (unload-font font)
     (close-window)))
+
