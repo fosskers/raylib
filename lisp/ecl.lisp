@@ -206,6 +206,75 @@
                         (vector2-pointer position)
                         (color-pointer tint)))
 
+;; --- Fonts --- ;;
+
+;; TODO: 2025-08-07 Start here. Port over the `font' type and all its
+;; associated functions. Ensure the main example still works. All the stuff in
+;; `shim' has already been taken care of.
+
+(ffi:def-struct font-raw
+    (base-size   :int)
+  (glyph-count   :int)
+  (glyph-padding :int)
+  (texture       texture-raw)
+  (recs          :pointer-void)
+  (glyphs        :pointer-void))
+
+(defstruct (font (:constructor @font))
+  (pointer nil :type si:foreign-data))
+
+(ffi:def-function ("_LoadFont" load-font-raw)
+    ((file-name :cstring))
+  :returning (* font-raw))
+
+(declaim (ftype (function ((or string pathname)) font) load-font))
+(defun load-font (file-name)
+  "Load a font from a file into GPU memory."
+  (let* ((pointer (load-font-raw (namestring file-name)))
+         (font (@font :pointer pointer)))
+    (tg:finalize font (lambda () (free! pointer)))))
+
+(ffi:def-function ("_LoadFontEx" load-font-ex-raw)
+    ((file-name  :cstring)
+     (font-size  :int)
+     (codepoints (* :int))
+     (codepoint-count :int))
+  :returning (* font-raw))
+
+(declaim (ftype (function ((or string pathname) fixnum (vector integer)) font) load-font-ex))
+(defun load-font-ex (file-name font-size codepoints)
+  "Load a font with additional parameters, particularly those pertaining to UTF-8
+codepoints. The `codepoints' vector should contain the result of `char-code' for
+every character you intend to print in your game."
+  (let* ((count (length codepoints))
+         (array (ffi:allocate-foreign-object :int count)))
+    ;; FIXME: 2025-08-07 There may be a way to avoid this manual copy.
+    ;; (loop :for i :from 0 :below count
+    ;;       :do (setf (ffi:deref-array array :int i) (aref codepoints i)))
+    (let* ((point (load-font-ex-raw (namestring file-name) font-size array count))
+           (font  (@font :pointer point)))
+      (ffi:free-foreign-object array)
+      (tg:finalize font (lambda () (free! point))))))
+
+(ffi:def-function ("_IsFontValid" is-font-valid-raw)
+    ((font (* font-raw)))
+  ;; HACK: 2025-08-09 Bool.
+  :returning :unsigned-byte)
+
+(ffi:def-function ("_UnloadFont" unload-font-raw)
+    ((font (* font-raw)))
+  :returning :void)
+
+(declaim (ftype (function (font)) unload-font))
+(defun unload-font (font)
+  "Unload a font from GPU memory."
+  (unload-font-raw (font-pointer font)))
+
+(declaim (ftype (function (font) boolean) is-font-valid))
+(defun is-font-valid (font)
+  "Did a given `font' load correctly?"
+  (= 1 (is-font-valid-raw (font-pointer font))))
+
 ;; --- Sounds and Music --- ;;
 
 (ffi:def-struct audio-stream
