@@ -221,6 +221,14 @@ bool _CheckCollisionPointRec(Vector2 *point, Rectangle *rec) {
 
 // --- Fonts --- //
 
+Font *_GetFontDefault(void) {
+  Font *heap = malloc(sizeof(Font));
+  Font stack = GetFontDefault();
+  *heap = stack;
+
+  return heap;
+}
+
 Font *_LoadFont(const char *fileName) {
   Font *heap = malloc(sizeof(Font));
   Font stack = LoadFont(fileName);

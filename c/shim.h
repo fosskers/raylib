@@ -82,6 +82,8 @@ bool _CheckCollisionRecs(Rectangle *rec1, Rectangle *rec2);
 
 // --- Fonts --- //
 
+Font *_GetFontDefault(void);
+
 Font *_LoadFont(const char *fileName);
 
 Font *_LoadFontEx(const char *fileName, int fontSize, int *codepoints,

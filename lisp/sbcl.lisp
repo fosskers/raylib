@@ -277,6 +277,15 @@
 (defstruct (font (:constructor @font))
   (pointer nil :type alien))
 
+(define-alien-routine ("_GetFontDefault" get-font-default-raw) (* (struct font-raw)))
+
+(declaim (ftype (function () font) get-font-default))
+(defun get-font-default ()
+  "Get the default Raylib font."
+  (let* ((pointer (get-font-default-raw))
+         (font (@font :pointer pointer)))
+    (tg:finalize font (lambda () (free-alien pointer)))))
+
 (define-alien-routine ("_LoadFont" load-font-raw) (* (struct font-raw))
   (file-name c-string))
 
