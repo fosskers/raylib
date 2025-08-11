@@ -587,10 +587,6 @@ every character you intend to print in your game."
   (spacing single-float)
   (tint (* (struct color-raw))))
 
-;; TODO: 2025-08-04 Start here. Pass `real' instead of floats to allow for
-;; flexible calling. Then continue on with loading and displaying fonts
-;; in the example within `package'. Then ECL support.
-
 (declaim (ftype (function (font string vector2 real real color)) draw-text-ex))
 (defun draw-text-ex (font text position font-size spacing tint)
   "Draw text using a `font' and additional parameters."

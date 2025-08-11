@@ -208,10 +208,6 @@
 
 ;; --- Fonts --- ;;
 
-;; TODO: 2025-08-07 Start here. Port over the `font' type and all its
-;; associated functions. Ensure the main example still works. All the stuff in
-;; `shim' has already been taken care of.
-
 (ffi:def-struct font-raw
     (base-size   :int)
   (glyph-count   :int)
@@ -249,8 +245,8 @@ every character you intend to print in your game."
   (let* ((count (length codepoints))
          (array (ffi:allocate-foreign-object :int count)))
     ;; FIXME: 2025-08-07 There may be a way to avoid this manual copy.
-    ;; (loop :for i :from 0 :below count
-    ;;       :do (setf (ffi:deref-array array :int i) (aref codepoints i)))
+    (loop :for i :from 0 :below count
+          :do (setf (ffi:deref-array array '(:array :int) i) (aref codepoints i)))
     (let* ((point (load-font-ex-raw (namestring file-name) font-size array count))
            (font  (@font :pointer point)))
       (ffi:free-foreign-object array)
@@ -513,6 +509,48 @@ every character you intend to print in your game."
 (declaim (ftype (function (string fixnum fixnum fixnum color) null) draw-text))
 (defun draw-text (text pos-x pos-y font-size color)
   (draw-text-raw text pos-x pos-y font-size (color-pointer color)))
+
+;; BUG: 2025-08-11 This will NOT work if your strings contain anything other
+;; than ASCII. See: https://gitlab.com/embeddable-common-lisp/ecl/-/issues/790
+(ffi:def-function ("_DrawTextEx" draw-text-ex-raw)
+    ((font (* font-raw))
+     (text :cstring)
+     (position (* vector2-raw))
+     (font-size :float)
+     (spacing :float)
+     (tint (* color-raw)))
+  :returning :void)
+
+(declaim (ftype (function (font string vector2 real real color)) draw-text-ex))
+(defun draw-text-ex (font text position font-size spacing tint)
+  "Draw text using a `font' and additional parameters."
+  (draw-text-ex-raw (font-pointer font)
+                    text
+                    (vector2-pointer position)
+                    (float font-size)
+                    (float spacing)
+                    (color-pointer tint)))
+
+#+nil
+(ffi:def-function ("_DrawTextEx" draw-text-ex-raw)
+    ((font (* font-raw))
+     (text (* :char))
+     (position (* vector2-raw))
+     (font-size :float)
+     (spacing :float)
+     (tint (* color-raw)))
+  :returning :void)
+
+#+nil
+(defun draw-text-ex (font text position font-size spacing tint)
+  "Draw text using a `font' and additional parameters."
+  (ffi:with-foreign-string (ctext text)
+                           (draw-text-ex-raw (font-pointer font)
+                                             ctext
+                                             (vector2-pointer position)
+                                             (float font-size)
+                                             (float spacing)
+                                             (color-pointer tint))))
 
 (ffi:def-function ("_DrawRectangle" draw-rectangle-raw)
     ((pos-x :int)
