@@ -146,10 +146,8 @@ be compiled with `.so' files found in one location, but run with ones from anoth
           :do (progn (begin-drawing)
                      (clear-background white)
                      (draw-text "Café" 50 50 20 black)
-                     #-ecl
                      (draw-text-ex font "日本語 Café" pos 20 5 black)
                      (draw-fps 0 0)
                      (end-drawing)))
     (unload-font font)
     (close-window)))
-

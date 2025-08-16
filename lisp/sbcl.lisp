@@ -310,7 +310,7 @@ every character you intend to print in your game."
   (let* ((count (length codepoints))
          (array (make-alien int count)))
     ;; FIXME: 2025-08-07 There may be a way to avoid this manual copy.
-    (loop :for i :from 0 :below count
+    (loop :for i fixnum :from 0 :below count
           :do (setf (deref array i) (aref codepoints i)))
     (let* ((point (load-font-ex-raw (namestring file-name) font-size array count))
            (font  (@font :pointer point)))
