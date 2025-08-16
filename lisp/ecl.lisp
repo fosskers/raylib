@@ -219,6 +219,17 @@
 (defstruct (font (:constructor @font))
   (pointer nil :type si:foreign-data))
 
+(ffi:def-function ("_GetFontDefault" get-font-default-raw)
+    ()
+  :returning (* font-raw))
+
+(declaim (ftype (function () font) get-font-default))
+(defun get-font-default ()
+  "Get the default Raylib font."
+  (let* ((pointer (get-font-default-raw))
+         (font (@font :pointer pointer)))
+    (tg:finalize font (lambda () (free! pointer)))))
+
 (ffi:def-function ("_LoadFont" load-font-raw)
     ((file-name :cstring))
   :returning (* font-raw))
