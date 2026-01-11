@@ -1,5 +1,17 @@
 (in-package :raylib)
 
+;; On macOS, raylib triggers floating-point exceptions that SBCL traps by default.
+#+darwin
+(sb-int:set-floating-point-modes :traps nil)
+
+;; On macOS, window operations must run on the main thread.
+(defmacro with-main-thread (&body body)
+  "Execute BODY on the main thread on macOS, or directly on other platforms."
+  #+darwin
+  `(tmt:call-in-main-thread (lambda () ,@body))
+  #-darwin
+  `(progn ,@body))
+
 ;; --- Vectors --- ;;
 
 (define-alien-type nil
@@ -235,9 +247,10 @@
 
 (declaim (ftype (function (texture fixnum fixnum color) null) draw-texture))
 (defun draw-texture (texture pos-x pos-y tint)
-  (draw-texture-raw (texture-pointer texture)
-                    pos-x pos-y
-                    (color-pointer tint)))
+  (with-main-thread
+    (draw-texture-raw (texture-pointer texture)
+                      pos-x pos-y
+                      (color-pointer tint))))
 
 (define-alien-routine ("_DrawTextureV" draw-texture-v-raw) void
   (texture  (* (struct texture-raw)))
@@ -246,9 +259,10 @@
 
 (declaim (ftype (function (texture vector2 color) null) draw-texture-v))
 (defun draw-texture-v (texture position tint)
-  (draw-texture-v-raw (texture-pointer texture)
-                      (vector2-pointer position)
-                      (color-pointer tint)))
+  (with-main-thread
+    (draw-texture-v-raw (texture-pointer texture)
+                        (vector2-pointer position)
+                        (color-pointer tint))))
 
 (define-alien-routine ("_DrawTextureRec" draw-texture-rec-raw) void
   (texture  (* (struct texture-raw)))
@@ -258,10 +272,11 @@
 
 (declaim (ftype (function (texture rectangle vector2 color) null) draw-texture-rec))
 (defun draw-texture-rec (texture source position tint)
-  (draw-texture-rec-raw (texture-pointer texture)
-                        (rectangle-pointer source)
-                        (vector2-pointer position)
-                        (color-pointer tint)))
+  (with-main-thread
+    (draw-texture-rec-raw (texture-pointer texture)
+                          (rectangle-pointer source)
+                          (vector2-pointer position)
+                          (color-pointer tint))))
 
 ;; --- Fonts --- ;;
 
@@ -541,40 +556,76 @@ every character you intend to print in your game."
 
 ;; --- Window --- ;;
 
-(define-alien-routine ("InitWindow" init-window) void
+(define-alien-routine ("InitWindow" init-window-raw) void
   (width int)
   (height int)
   (title c-string))
 
-(define-alien-routine ("CloseWindow" close-window) void)
+(defun init-window (width height title)
+  "Initialize window and OpenGL context."
+  (with-main-thread (init-window-raw width height title)))
 
-(define-alien-routine ("InitAudioDevice" init-audio-device) void)
+(define-alien-routine ("CloseWindow" close-window-raw) void)
 
-(define-alien-routine ("CloseAudioDevice" close-audio-device) void)
+(defun close-window ()
+  "Close window and unload OpenGL context."
+  (with-main-thread (close-window-raw)))
 
-(define-alien-routine ("WindowShouldClose" window-should-close) (boolean 8))
+(define-alien-routine ("InitAudioDevice" init-audio-device-raw) void)
 
-(define-alien-routine ("BeginDrawing" begin-drawing) void)
+(defun init-audio-device ()
+  "Initialize audio device and context."
+  (with-main-thread (init-audio-device-raw)))
 
-(define-alien-routine ("EndDrawing" end-drawing) void)
+(define-alien-routine ("CloseAudioDevice" close-audio-device-raw) void)
+
+(defun close-audio-device ()
+  "Close the audio device and context."
+  (with-main-thread (close-audio-device-raw)))
+
+(define-alien-routine ("WindowShouldClose" window-should-close-raw) (boolean 8))
+
+(defun window-should-close ()
+  "Check if application should close (KEY_ESCAPE pressed or windows close icon clicked)."
+  (with-main-thread (window-should-close-raw)))
+
+(define-alien-routine ("BeginDrawing" begin-drawing-raw) void)
+
+(defun begin-drawing ()
+  "Setup canvas (framebuffer) to start drawing."
+  (with-main-thread (begin-drawing-raw)))
+
+(define-alien-routine ("EndDrawing" end-drawing-raw) void)
+
+(defun end-drawing ()
+  "End canvas drawing and swap buffers (double buffering)."
+  (with-main-thread (end-drawing-raw)))
 
 (define-alien-routine ("_BeginMode2D" begin-mode-2d-raw) void
   (camera (* (struct camera-2d-raw))))
 
 (defun begin-mode-2d (camera)
-  (begin-mode-2d-raw (camera-2d-pointer camera)))
+  (with-main-thread (begin-mode-2d-raw (camera-2d-pointer camera))))
 
-(define-alien-routine ("EndMode2D" end-mode-2d) void)
+(define-alien-routine ("EndMode2D" end-mode-2d-raw) void)
+
+(defun end-mode-2d ()
+  "Ends 2D mode with custom camera."
+  (with-main-thread (end-mode-2d-raw)))
 
 (define-alien-routine ("_ClearBackground" clear-background-raw) void
   (color (* (struct color-raw))))
 
 (defun clear-background (color)
-  (clear-background-raw (color-pointer color)))
+  (with-main-thread (clear-background-raw (color-pointer color))))
 
-(define-alien-routine ("DrawFPS" draw-fps) void
+(define-alien-routine ("DrawFPS" draw-fps-raw) void
   (pos-x int)
   (pos-y int))
+
+(defun draw-fps (pos-x pos-y)
+  "Draw current FPS."
+  (with-main-thread (draw-fps-raw pos-x pos-y)))
 
 (define-alien-routine ("_DrawText" draw-text-raw) void
   (text c-string)
@@ -586,7 +637,7 @@ every character you intend to print in your game."
 (declaim (ftype (function (string fixnum fixnum fixnum color) null) draw-text))
 (defun draw-text (text pos-x pos-y font-size color)
   "Draw text using the default font."
-  (draw-text-raw text pos-x pos-y font-size (color-pointer color)))
+  (with-main-thread (draw-text-raw text pos-x pos-y font-size (color-pointer color))))
 
 (define-alien-routine ("_DrawTextEx" draw-text-ex-raw) void
   (font (* (struct font-raw)))
@@ -599,7 +650,8 @@ every character you intend to print in your game."
 (declaim (ftype (function (font string vector2 real real color)) draw-text-ex))
 (defun draw-text-ex (font text position font-size spacing tint)
   "Draw text using a `font' and additional parameters."
-  (draw-text-ex-raw (font-pointer font) text (vector2-pointer position) (float font-size) (float spacing) (color-pointer tint)))
+  (with-main-thread
+    (draw-text-ex-raw (font-pointer font) text (vector2-pointer position) (float font-size) (float spacing) (color-pointer tint))))
 
 (define-alien-routine ("_DrawRectangle" draw-rectangle-raw) void
   (pos-x int)
@@ -610,7 +662,7 @@ every character you intend to print in your game."
 
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-rectangle))
 (defun draw-rectangle (pos-x pos-y width height color)
-  (draw-rectangle-raw pos-x pos-y width height (color-pointer color)))
+  (with-main-thread (draw-rectangle-raw pos-x pos-y width height (color-pointer color))))
 
 (define-alien-routine ("_DrawLine" draw-line-raw) void
   (start-pos-x int)
@@ -621,7 +673,7 @@ every character you intend to print in your game."
 
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-line))
 (defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
-  (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-pointer color)))
+  (with-main-thread (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-pointer color))))
 
 (define-alien-routine ("_DrawPixel" draw-pixel-raw) void
   (pos-x int)
@@ -630,7 +682,7 @@ every character you intend to print in your game."
 
 (declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
 (defun draw-pixel (pos-x pos-y color)
-  (draw-pixel-raw pos-x pos-y (color-pointer color)))
+  (with-main-thread (draw-pixel-raw pos-x pos-y (color-pointer color))))
 
 ;; --- Collision --- ;;
 
@@ -655,8 +707,15 @@ every character you intend to print in your game."
 
 ;; --- Time --- ;;
 
-(define-alien-routine ("SetTargetFPS" set-target-fps) void
+(define-alien-routine ("SetTargetFPS" set-target-fps-raw) void
   (fps int))
 
-(define-alien-routine ("GetFrameTime" get-frame-time) float
-  "Get time in seconds for last frame drawn (delta time).")
+(defun set-target-fps (fps)
+  "Set target FPS (maximum)."
+  (with-main-thread (set-target-fps-raw fps)))
+
+(define-alien-routine ("GetFrameTime" get-frame-time-raw) float)
+
+(defun get-frame-time ()
+  "Get time in seconds for last frame drawn (delta time)."
+  (with-main-thread (get-frame-time-raw)))

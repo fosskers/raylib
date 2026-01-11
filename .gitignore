@@ -2,3 +2,5 @@
 *.fas
 *.so
 lib/
+raylib.h
+shim.h
