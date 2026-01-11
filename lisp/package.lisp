@@ -49,6 +49,8 @@ restarted. Note the use of `:dont-save' below. This is to allow the package to
 be compiled with `.so' files found in one location, but run with ones from another."
   (let ((dir (case target
                (:linux "/usr/lib/")
+               (:darwin #+arm64 "/opt/homebrew/lib/"
+                        #-arm64 "/usr/local/lib/")
                (t "lib/"))))
     #+linux
     (progn
@@ -57,7 +59,11 @@ be compiled with `.so' files found in one location, but run with ones from anoth
     #+win32
     (progn
       (load-shared-object (merge-pathnames "lisp-raylib.dll" dir) :dont-save t)
-      (load-shared-object (merge-pathnames "lisp-raylib-shim.dll" dir) :dont-save t))))
+      (load-shared-object (merge-pathnames "lisp-raylib-shim.dll" dir) :dont-save t))
+    #+darwin
+    (progn
+      (load-shared-object (merge-pathnames "liblisp-raylib.dylib" dir) :dont-save t)
+      (load-shared-object (merge-pathnames "liblisp-raylib-shim.dylib" dir) :dont-save t))))
 
 #+sbcl
 (load-shared-objects)
@@ -68,6 +74,11 @@ be compiled with `.so' files found in one location, but run with ones from anoth
 (progn
   (ffi:load-foreign-library #p"lib/liblisp-raylib.so")
   (ffi:load-foreign-library #p"lib/liblisp-raylib-shim.so"))
+
+#+(and ecl darwin)
+(progn
+  (ffi:load-foreign-library #p"lib/liblisp-raylib.dylib")
+  (ffi:load-foreign-library #p"lib/liblisp-raylib-shim.dylib"))
 
 ;; --- Keyboard and Gamepad --- ;;
 

@@ -5,6 +5,14 @@
 ;; For access to `free'.
 (ffi:clines "#include <stdlib.h>")
 
+;; On macOS, window operations must run on the main thread.
+(defmacro with-main-thread (&body body)
+  "Execute BODY on the main thread on macOS, or directly on other platforms."
+  #+darwin
+  `(tmt:call-in-main-thread (lambda () ,@body))
+  #-darwin
+  `(progn ,@body))
+
 ;; NOTE: 2025-01-03 This is highly bespoke and comes directly from the maintainer of ECL.
 (defun free! (ptr)
   "A custom call to C's `free' that ensures everything is properly reset."
@@ -178,9 +186,10 @@
   :returning :void)
 
 (defun draw-texture (texture pos-x pos-y tint)
-  (draw-texture-raw (texture-pointer texture)
-                    pos-x pos-y
-                    (color-pointer tint)))
+  (with-main-thread
+    (draw-texture-raw (texture-pointer texture)
+                      pos-x pos-y
+                      (color-pointer tint))))
 
 (ffi:def-function ("_DrawTextureV" draw-texture-v-raw)
     ((texture  (* texture-raw))
@@ -189,9 +198,10 @@
   :returning :void)
 
 (defun draw-texture-v (texture position tint)
-  (draw-texture-v-raw (texture-pointer texture)
-                      (vector2-pointer position)
-                      (color-pointer tint)))
+  (with-main-thread
+    (draw-texture-v-raw (texture-pointer texture)
+                        (vector2-pointer position)
+                        (color-pointer tint))))
 
 (ffi:def-function ("_DrawTextureRec" draw-texture-rec-raw)
     ((texture  (* texture-raw))
@@ -201,10 +211,11 @@
   :returning :void)
 
 (defun draw-texture-rec (texture source position tint)
-  (draw-texture-rec-raw (texture-pointer texture)
-                        (rectangle-pointer source)
-                        (vector2-pointer position)
-                        (color-pointer tint)))
+  (with-main-thread
+    (draw-texture-rec-raw (texture-pointer texture)
+                          (rectangle-pointer source)
+                          (vector2-pointer position)
+                          (color-pointer tint))))
 
 ;; --- Fonts --- ;;
 
@@ -461,53 +472,89 @@ every character you intend to print in your game."
 
 ;; --- Window --- ;;
 
-(ffi:def-function ("InitWindow" init-window)
+(ffi:def-function ("InitWindow" init-window-raw)
     ((width :int)
      (height :int)
      (title :cstring))
   :returning :void)
 
-(ffi:def-function ("CloseWindow" close-window) () :returning :void)
+(defun init-window (width height title)
+  "Initialize window and OpenGL context."
+  (with-main-thread (init-window-raw width height title)))
 
-(ffi:def-function ("InitAudioDevice" init-audio-device) () :returning :void)
+(ffi:def-function ("CloseWindow" close-window-raw) () :returning :void)
 
-(ffi:def-function ("CloseAudioDevice" close-audio-device) () :returning :void)
+(defun close-window ()
+  "Close window and unload OpenGL context."
+  (with-main-thread (close-window-raw)))
 
-(ffi:def-function ("SetTargetFPS" set-target-fps)
+(ffi:def-function ("InitAudioDevice" init-audio-device-raw) () :returning :void)
+
+(defun init-audio-device ()
+  "Initialize audio device and context."
+  (with-main-thread (init-audio-device-raw)))
+
+(ffi:def-function ("CloseAudioDevice" close-audio-device-raw) () :returning :void)
+
+(defun close-audio-device ()
+  "Close the audio device and context."
+  (with-main-thread (close-audio-device-raw)))
+
+(ffi:def-function ("SetTargetFPS" set-target-fps-raw)
     ((fps :int))
   :returning :void)
+
+(defun set-target-fps (fps)
+  "Set target FPS (maximum)."
+  (with-main-thread (set-target-fps-raw fps)))
 
 (ffi:def-function ("WindowShouldClose" window-should-close-raw) ()
   ;; HACK: 2025-01-03 Bool.
   :returning :unsigned-byte)
 
 (defun window-should-close ()
-  (= 1 (window-should-close-raw)))
+  (with-main-thread (= 1 (window-should-close-raw))))
 
-(ffi:def-function ("BeginDrawing" begin-drawing) () :returning :void)
+(ffi:def-function ("BeginDrawing" begin-drawing-raw) () :returning :void)
 
-(ffi:def-function ("EndDrawing" end-drawing) () :returning :void)
+(defun begin-drawing ()
+  "Setup canvas (framebuffer) to start drawing."
+  (with-main-thread (begin-drawing-raw)))
+
+(ffi:def-function ("EndDrawing" end-drawing-raw) () :returning :void)
+
+(defun end-drawing ()
+  "End canvas drawing and swap buffers (double buffering)."
+  (with-main-thread (end-drawing-raw)))
 
 (ffi:def-function ("_BeginMode2D" begin-mode-2d-raw)
     ((camera (* camera-2d-raw)))
   :returning :void)
 
 (defun begin-mode-2d (camera)
-  (begin-mode-2d-raw (camera-2d-pointer camera)))
+  (with-main-thread (begin-mode-2d-raw (camera-2d-pointer camera))))
 
-(ffi:def-function ("EndMode2D" end-mode-2d) () :returning :void)
+(ffi:def-function ("EndMode2D" end-mode-2d-raw) () :returning :void)
+
+(defun end-mode-2d ()
+  "Ends 2D mode with custom camera."
+  (with-main-thread (end-mode-2d-raw)))
 
 (ffi:def-function ("_ClearBackground" clear-background-raw)
     ((color (* color-raw)))
   :returning :void)
 
 (defun clear-background (color)
-  (clear-background-raw (color-pointer color)))
+  (with-main-thread (clear-background-raw (color-pointer color))))
 
-(ffi:def-function ("DrawFPS" draw-fps)
+(ffi:def-function ("DrawFPS" draw-fps-raw)
     ((pos-x :int)
      (pos-y :int))
   :returning :void)
+
+(defun draw-fps (pos-x pos-y)
+  "Draw current FPS."
+  (with-main-thread (draw-fps-raw pos-x pos-y)))
 
 (ffi:def-function ("_DrawText" draw-text-raw)
     ((text (* :char))
@@ -522,7 +569,8 @@ every character you intend to print in your game."
   (let* ((octets (ext:string-to-octets text :null-terminate t))
          (ctext  (si:make-foreign-data-from-array octets)))
     (declare (dynamic-extent octets))
-    (draw-text-raw ctext pos-x pos-y font-size (color-pointer color))
+    (with-main-thread
+      (draw-text-raw ctext pos-x pos-y font-size (color-pointer color)))
     (ffi:free-foreign-object ctext)))
 
 (ffi:def-function ("_DrawTextEx" draw-text-ex-raw)
@@ -540,12 +588,13 @@ every character you intend to print in your game."
   (let* ((octets (ext:string-to-octets text :null-terminate t))
          (ctext  (si:make-foreign-data-from-array octets)))
     (declare (dynamic-extent octets))
-    (draw-text-ex-raw (font-pointer font)
-                      ctext
-                      (vector2-pointer position)
-                      (float font-size)
-                      (float spacing)
-                      (color-pointer tint))
+    (with-main-thread
+      (draw-text-ex-raw (font-pointer font)
+                        ctext
+                        (vector2-pointer position)
+                        (float font-size)
+                        (float spacing)
+                        (color-pointer tint)))
     (ffi:free-foreign-object ctext)))
 
 #+nil
@@ -561,7 +610,7 @@ every character you intend to print in your game."
 
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-rectangle))
 (defun draw-rectangle (pos-x pos-y width height color)
-  (draw-rectangle-raw pos-x pos-y width height (color-pointer color)))
+  (with-main-thread (draw-rectangle-raw pos-x pos-y width height (color-pointer color))))
 
 (ffi:def-function ("_DrawLine" draw-line-raw)
     ((start-pos-x :int)
@@ -573,7 +622,7 @@ every character you intend to print in your game."
 
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-line))
 (defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
-  (draw-line-raw start-pos-x start-pos-x end-pos-x end-pos-y (color-pointer color)))
+  (with-main-thread (draw-line-raw start-pos-x start-pos-x end-pos-x end-pos-y (color-pointer color))))
 
 (ffi:def-function ("_DrawPixel" draw-pixel-raw)
     ((pos-x :int)
@@ -582,7 +631,7 @@ every character you intend to print in your game."
 
 (declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
 (defun draw-pixel (pos-x pos-y color)
-  (draw-pixel-raw pos-x pos-x (color-pointer color)))
+  (with-main-thread (draw-pixel-raw pos-x pos-x (color-pointer color))))
 
 ;; --- Collision --- ;;
 
