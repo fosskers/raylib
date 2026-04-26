@@ -550,6 +550,8 @@ every character you intend to print in your game."
 
 (define-alien-routine ("WindowShouldClose" window-should-close) (boolean 8))
 
+;; --- Drawing --- ;;
+
 (define-alien-routine ("BeginDrawing" begin-drawing) void)
 
 (define-alien-routine ("EndDrawing" end-drawing) void)
@@ -561,3 +563,69 @@ every character you intend to print in your game."
   (begin-mode-2d-raw (camera-2d-raw camera)))
 
 (define-alien-routine ("EndMode2D" end-mode-2d) void)
+
+(define-alien-routine ("ClearBackground" clear-background-raw) void
+  (color (struct color-raw)))
+
+(defun clear-background (color)
+  (clear-background-raw (color-raw color)))
+
+(define-alien-routine ("DrawFPS" draw-fps) void
+  (pos-x int)
+  (pos-y int))
+
+(define-alien-routine ("DrawText" draw-text-raw) void
+  (text c-string)
+  (pos-x int)
+  (pos-y int)
+  (font-size int)
+  (color (struct color-raw)))
+
+(declaim (ftype (function (string fixnum fixnum fixnum color) null) draw-text))
+(defun draw-text (text pos-x pos-y font-size color)
+  "Draw text using the default font."
+  (draw-text-raw text pos-x pos-y font-size (color-raw color)))
+
+(define-alien-routine ("DrawTextEx" draw-text-ex-raw) void
+  (font (struct font-raw))
+  (text c-string)
+  (position (struct vector2-raw))
+  (font-size single-float)
+  (spacing single-float)
+  (tint (struct color-raw)))
+
+(declaim (ftype (function (font string vector2 real real color)) draw-text-ex))
+(defun draw-text-ex (font text position font-size spacing tint)
+  "Draw text using a `font' and additional parameters."
+  (draw-text-ex-raw (font-raw font) text (vector2-raw position) (float font-size) (float spacing) (color-raw tint)))
+
+(define-alien-routine ("DrawRectangle" draw-rectangle-raw) void
+  (pos-x int)
+  (pos-y int)
+  (width int)
+  (height int)
+  (color (struct color-raw)))
+
+(declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-rectangle))
+(defun draw-rectangle (pos-x pos-y width height color)
+  (draw-rectangle-raw pos-x pos-y width height (color-raw color)))
+
+(define-alien-routine ("DrawLine" draw-line-raw) void
+  (start-pos-x int)
+  (start-pos-y int)
+  (end-pos-x int)
+  (end-pos-y int)
+  (color (struct color-raw)))
+
+(declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-line))
+(defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
+  (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-raw color)))
+
+(define-alien-routine ("DrawPixel" draw-pixel-raw) void
+  (pos-x int)
+  (pos-y int)
+  (color (struct color-raw)))
+
+(declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
+(defun draw-pixel (pos-x pos-y color)
+  (draw-pixel-raw pos-x pos-y (color-raw color)))
