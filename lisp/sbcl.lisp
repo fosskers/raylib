@@ -276,3 +276,69 @@
                         (rectangle-raw source)
                         (vector2-raw position)
                         (color-raw tint)))
+
+;; --- Fonts --- ;;
+
+(define-alien-type nil
+    (struct font-raw
+            (base-size int)
+            (glyph-count int)
+            (glyph-padding int)
+            (texture (struct texture-raw))
+            (recs (* t))
+            (glyphs (* t))))
+
+;; FIXME: 2026-04-26 Offsets?
+(defstruct (font (:constructor @font))
+  (raw nil :type (alien (struct font-raw))))
+
+(define-alien-routine ("GetFontDefault" get-font-default-raw) (struct font-raw))
+
+(declaim (ftype (function () font) get-font-default))
+(defun get-font-default ()
+  "Get the default Raylib font."
+  (@font :raw (get-font-default-raw)))
+
+(define-alien-routine ("LoadFont" load-font-raw) (struct font-raw)
+  (file-name c-string))
+
+(declaim (ftype (function ((or string pathname)) font) load-font))
+(defun load-font (file-name)
+  "Load a font from a file into GPU memory."
+  (@font :raw (load-font-raw (namestring file-name))))
+
+(define-alien-routine ("LoadFontEx" load-font-ex-raw) (struct font-raw)
+  (file-name c-string)
+  (font-size int)
+  (codepoints (* int))
+  (codepoint-count int))
+
+(declaim (ftype (function ((or string pathname) fixnum (vector integer)) font) load-font-ex))
+(defun load-font-ex (file-name font-size codepoints)
+  "Load a font with additional parameters, particularly those pertaining to UTF-8
+codepoints. The `codepoints' vector should contain the result of `char-code' for
+every character you intend to print in your game."
+  (let* ((count (length codepoints))
+         (array (make-alien int count)))
+    ;; FIXME: 2025-08-07 There may be a way to avoid this manual copy.
+    (loop :for i fixnum :from 0 :below count
+          :do (setf (deref array i) (aref codepoints i)))
+    (let ((font (@font :raw (load-font-ex-raw (namestring file-name) font-size array count))))
+      (free-alien array)
+      font)))
+
+(define-alien-routine ("UnloadFont" unload-font-raw) void
+  (font (struct font-raw)))
+
+(declaim (ftype (function (font)) unload-font))
+(defun unload-font (font)
+  "Unload a font from GPU memory."
+  (unload-font-raw (font-raw font)))
+
+(define-alien-routine ("IsFontValid" is-font-valid-raw) (boolean 8)
+  (font (struct font-raw)))
+
+(declaim (ftype (function (font) boolean) is-font-valid))
+(defun is-font-valid (font)
+  "Did a given `font' load correctly?"
+  (is-font-valid-raw (font-raw font)))
