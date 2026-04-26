@@ -7,7 +7,6 @@
 
 (defpackage raylib
   (:use :cl #+sbcl :sb-alien)
-  (:local-nicknames (#:tg #:trivial-garbage))
   ;; --- Types --- ;;
   (:export #:vector2 #:make-vector2 #:vector2-x #:vector2-y
            #:rectangle #:make-rectangle #:rectangle-x #:rectangle-y #:rectangle-width #:rectangle-height
