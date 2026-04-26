@@ -6,7 +6,7 @@
 
 // --- Vectors --- //
 
-Vector2 *_MakeVector2(float x, float y);
+Vector2 _MakeVector2(float x, float y);
 
 // --- Rectangles --- //
 
