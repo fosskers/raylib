@@ -24,48 +24,6 @@ Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
     return c;
 }
 
-// --- Textures --- //
-
-Texture2D *_LoadTexture(const char *fileName) {
-    Texture2D *heap = malloc(sizeof(Texture2D));
-    Texture2D stack = LoadTexture(fileName);
-    *heap = stack;
-
-    return heap;
-}
-
-void _UnloadTexture(Texture2D *texture) {
-    Texture2D stack = *texture;
-    UnloadTexture(stack);
-}
-
-bool _IsTextureValid(Texture2D *texture) {
-    Texture2D stack = *texture;
-    return IsTextureValid(stack);
-}
-
-void _DrawTexture(Texture2D *texture, int posX, int posY, Color *tint) {
-    Texture2D t = *texture;
-    Color c = *tint;
-    DrawTexture(t, posX, posY, c);
-}
-
-void _DrawTextureV(Texture2D *texture, Vector2 *position, Color *tint) {
-    Texture2D t = *texture;
-    Vector2 v = *position;
-    Color c = *tint;
-    DrawTextureV(t, v, c);
-}
-
-void _DrawTextureRec(Texture2D *texture, Rectangle *source, Vector2 *position,
-                     Color *tint) {
-    Texture2D t = *texture;
-    Rectangle r = *source;
-    Vector2 v = *position;
-    Color c = *tint;
-    DrawTextureRec(t, r, v, c);
-}
-
 // --- Sounds and Music --- //
 
 Sound *_LoadSound(const char *fileName) {

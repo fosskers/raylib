@@ -178,3 +178,101 @@
 
 #+nil
 (make-color :r 0 :g 0 :b 0 :a 0)
+
+;; --- Textures --- ;;
+
+(define-alien-type nil
+    (struct texture-raw
+            (id unsigned-int)
+            (width int)
+            (height int)
+            (mipmaps int)
+            (format int)))
+
+(defstruct (texture (:constructor @texture))
+  (raw nil :type (alien (struct texture-raw
+                                (id unsigned-int :offset 0)
+                                (width   int :offset 32)
+                                (height  int :offset 64)
+                                (mipmaps int :offset 96)
+                                (format  int :offset 128)))))
+
+(defmacro texture-width (r)
+  `(slot (texture-raw ,r) 'width))
+
+(defmacro texture-height (r)
+  `(slot (texture-raw ,r) 'height))
+
+(defmethod print-object ((x texture) stream)
+  (print-unreadable-object (x stream :type t :identity t)
+    (format stream ":ID ~a :WIDTH ~a :HEIGHT ~a :MIPMAPS ~a :FORMAT ~a"
+            (slot (texture-raw x) 'id)
+            (slot (texture-raw x) 'width)
+            (slot (texture-raw x) 'height)
+            (slot (texture-raw x) 'mipmaps)
+            (slot (texture-raw x) 'format))))
+
+(define-alien-routine ("LoadTexture" load-texture-raw) (struct texture-raw)
+  (file-name c-string))
+
+(defun load-texture (file-name)
+  (@texture :raw (load-texture-raw (namestring file-name))))
+
+(define-alien-routine ("UnloadTexture" unload-texture-raw) void
+  (texture (struct texture-raw)))
+
+(defun unload-texture (texture)
+  (unload-texture-raw (texture-raw texture)))
+
+#+nil
+(progn
+  (init-window 300 300 "hello!")
+  (let ((p (load-texture-raw "test.png")))
+    (format t "~a~%" (slot p 'id))
+    (format t "~a~%" (slot p 'width))
+    (format t "~a~%" (slot p 'height)))
+  (close-window))
+
+(define-alien-routine ("IsTextureValid" is-texture-valid-raw) (boolean 8)
+  (texture (struct texture-raw)))
+
+(declaim (ftype (function (texture) boolean) is-texture-valid))
+(defun is-texture-valid (texture)
+  "Did a given `texture' load correctly?"
+  (is-texture-valid-raw (texture-raw texture)))
+
+(define-alien-routine ("DrawTexture" draw-texture-raw) void
+  (texture (struct texture-raw))
+  (pos-x int)
+  (pos-y int)
+  (tint (struct color-raw)))
+
+(declaim (ftype (function (texture fixnum fixnum color) null) draw-texture))
+(defun draw-texture (texture pos-x pos-y tint)
+  (draw-texture-raw (texture-raw texture)
+                    pos-x pos-y
+                    (color-raw tint)))
+
+(define-alien-routine ("DrawTextureV" draw-texture-v-raw) void
+  (texture  (struct texture-raw))
+  (position (struct vector2-raw))
+  (tint     (struct color-raw)))
+
+(declaim (ftype (function (texture vector2 color) null) draw-texture-v))
+(defun draw-texture-v (texture position tint)
+  (draw-texture-v-raw (texture-raw texture)
+                      (vector2-raw position)
+                      (color-raw tint)))
+
+(define-alien-routine ("DrawTextureRec" draw-texture-rec-raw) void
+  (texture  (struct texture-raw))
+  (source   (struct rectangle-raw))
+  (position (struct vector2-raw))
+  (tint     (struct color-raw)))
+
+(declaim (ftype (function (texture rectangle vector2 color) null) draw-texture-rec))
+(defun draw-texture-rec (texture source position tint)
+  (draw-texture-rec-raw (texture-raw texture)
+                        (rectangle-raw source)
+                        (vector2-raw position)
+                        (color-raw tint)))
