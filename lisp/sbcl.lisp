@@ -427,3 +427,71 @@ every character you intend to print in your game."
 (defun update-music-stream (music)
   (update-music-stream-raw (music-raw music)))
 
+;; --- Camera --- ;;
+
+(define-alien-type nil
+    (struct camera-2d-raw
+            (offset (struct vector2-raw))
+            (target (struct vector2-raw))
+            (rotation float)
+            (zoom float)))
+
+;; FIXME: 2025-01-27 Offsets here too?
+(defstruct (camera-2d (:constructor @camera-2d))
+  (raw nil :type (alien (struct camera-2d-raw))))
+
+(defmethod print-object ((c camera-2d) stream)
+  (print-unreadable-object (c stream :type t :identity t)
+    (format stream ":OFFSET ~a :TARGET ~a :ROTATION ~a :ZOOM ~a"
+            (camera-2d-offset c)
+            (camera-2d-target c)
+            (slot (camera-2d-raw c) 'rotation)
+            (slot (camera-2d-raw c) 'zoom))))
+
+#+slynk
+(defmethod slynk:emacs-inspect ((c camera-2d))
+  `("This is an FFI-wrapping of the pointer:"
+    (:newline)
+    ,(format nil "~a" (camera-2d-raw c))
+    (:newline)
+    (:newline)
+    "The struct's underlying values are:"
+    (:newline)
+    ,(format nil "OFFSET: ~a" (camera-2d-offset c))
+    (:newline)
+    ,(format nil "TARGET: ~a" (camera-2d-target c))
+    (:newline)
+    ,(format nil "ROTATION: ~a" (slot (camera-2d-raw c) 'rotation))
+    (:newline)
+    ,(format nil "ZOOM: ~a" (slot (camera-2d-raw c) 'zoom))))
+
+(define-alien-routine ("MakeCamera2D" make-camera-2d-raw) (struct camera-2d-raw)
+  (offset (struct vector2-raw))
+  (target (struct vector2-raw))
+  (rotation float)
+  (zoom float))
+
+(declaim (ftype (function (&key (:offset vector2) (:target vector2) (:rotation real) (:zoom real)) camera-2d) make-camera-2d))
+(defun make-camera-2d (&key offset target rotation zoom)
+  (@camera-2d :raw (make-camera-2d-raw (vector2-raw offset)
+                                       (vector2-raw target)
+                                       (float rotation)
+                                       (float zoom))))
+
+;; NOTE: 2026-04-26 This extra wrapping is still wasteful.
+(defun camera-2d-offset (camera)
+  (@vector2 :raw (slot (camera-2d-raw camera) 'offset)))
+
+(defun camera-2d-target (camera)
+  (@vector2 :raw (slot (camera-2d-raw camera) 'target)))
+
+(define-alien-routine ("GetWorldToScreen2D" get-world-to-screen-2d-raw) (struct vector2-raw)
+  (position (struct vector2-raw))
+  (camera   (struct camera-2d-raw)))
+
+(declaim (ftype (function (vector2 camera-2d) vector2) get-world-to-screen-2d))
+(defun get-world-to-screen-2d (position camera)
+  "Get the screen space position for a 2d camera world space position."
+  (@vector2 :raw (get-world-to-screen-2d-raw (vector2-raw position)
+                                             (camera-2d-raw camera))))
+

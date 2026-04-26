@@ -24,32 +24,6 @@ Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
     return c;
 }
 
-// --- Camera --- //
-
-Camera2D *_MakeCamera2D(Vector2 *offset, Vector2 *target, float rotation,
-                        float zoom) {
-    Camera2D *camera = malloc(sizeof(Camera2D));
-    Vector2 o = *offset;
-    Vector2 t = *target;
-
-    camera->offset = o;
-    camera->target = t;
-    camera->rotation = rotation;
-    camera->zoom = zoom;
-
-    return camera;
-}
-
-Vector2 *_GetWorldToScreen2D(Vector2 *position, Camera2D *camera) {
-    Vector2 *heap = malloc(sizeof(Vector2));
-    Vector2 stack = GetWorldToScreen2D(*position, *camera);
-
-    heap->x = stack.x;
-    heap->y = stack.y;
-
-    return heap;
-}
-
 // --- Window --- //
 
 void _ClearBackground(Color *color) {
