@@ -534,3 +534,30 @@ every character you intend to print in your game."
   "A value from -1 to 1."
   (gamepad int)
   (axis int))
+
+;; --- Window --- ;;
+
+(define-alien-routine ("InitWindow" init-window) void
+  (width int)
+  (height int)
+  (title c-string))
+
+(define-alien-routine ("CloseWindow" close-window) void)
+
+(define-alien-routine ("InitAudioDevice" init-audio-device) void)
+
+(define-alien-routine ("CloseAudioDevice" close-audio-device) void)
+
+(define-alien-routine ("WindowShouldClose" window-should-close) (boolean 8))
+
+(define-alien-routine ("BeginDrawing" begin-drawing) void)
+
+(define-alien-routine ("EndDrawing" end-drawing) void)
+
+(define-alien-routine ("BeginMode2D" begin-mode-2d-raw) void
+  (camera (struct camera-2d-raw)))
+
+(defun begin-mode-2d (camera)
+  (begin-mode-2d-raw (camera-2d-raw camera)))
+
+(define-alien-routine ("EndMode2D" end-mode-2d) void)
