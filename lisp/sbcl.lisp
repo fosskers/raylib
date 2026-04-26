@@ -379,3 +379,51 @@ every character you intend to print in your game."
 
 (defun play-sound (sound)
   (play-sound-raw (sound-raw sound)))
+
+;; --- Music --- ;;
+
+(define-alien-type nil
+    (struct music-raw
+            (stream (struct audio-stream))
+            (frame-count unsigned-int)
+            (looping (boolean 8))
+            (ctx-type int)
+            (ctx-data (* t))))
+
+;; FIXME: 2025-01-27 Offsets here too?
+(defstruct (music (:constructor @music))
+  (raw nil :type (alien (struct music-raw))))
+
+(defmacro music-looping (m)
+  `(slot (music-raw ,m) 'looping))
+
+(define-alien-routine ("LoadMusicStream" load-music-stream-raw) (struct music-raw)
+  (file-name c-string))
+
+(defun load-music-stream (file-name)
+  (@music :raw (load-music-stream-raw (namestring file-name))))
+
+(define-alien-routine ("UnloadMusicStream" unload-music-stream-raw) void
+  (music (struct music-raw)))
+
+(defun unload-music-stream (music)
+  (unload-music-stream-raw (music-raw music)))
+
+(define-alien-routine ("IsMusicStreamPlaying" is-music-stream-playing-raw) (boolean 8)
+  (music (struct music-raw)))
+
+(defun is-music-stream-playing (music)
+  (is-music-stream-playing-raw (music-raw music)))
+
+(define-alien-routine ("PlayMusicStream" play-music-stream-raw) void
+  (music (struct music-raw)))
+
+(defun play-music-stream (music)
+  (play-music-stream-raw (music-raw music)))
+
+(define-alien-routine ("UpdateMusicStream" update-music-stream-raw) void
+  (music (struct music-raw)))
+
+(defun update-music-stream (music)
+  (update-music-stream-raw (music-raw music)))
+

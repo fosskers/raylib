@@ -24,35 +24,6 @@ Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
     return c;
 }
 
-// --- Sounds and Music --- //
-
-Music *_LoadMusicStream(const char *fileName) {
-    Music stack = LoadMusicStream(fileName);
-    Music *heap = malloc(sizeof(Music));
-    *heap = stack;
-    return heap;
-}
-
-void _UnloadMusicStream(Music *music) {
-    Music stack = *music;
-    UnloadMusicStream(stack);
-}
-
-bool _IsMusicStreamPlaying(Music *music) {
-    Music stack = *music;
-    return IsMusicStreamPlaying(stack);
-}
-
-void _PlayMusicStream(Music *music) {
-    Music stack = *music;
-    PlayMusicStream(stack);
-}
-
-void _UpdateMusicStream(Music *music) {
-    Music stack = *music;
-    UpdateMusicStream(stack);
-}
-
 // --- Camera --- //
 
 Camera2D *_MakeCamera2D(Vector2 *offset, Vector2 *target, float rotation,
