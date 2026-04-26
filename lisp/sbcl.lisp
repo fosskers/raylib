@@ -342,3 +342,40 @@ every character you intend to print in your game."
 (defun is-font-valid (font)
   "Did a given `font' load correctly?"
   (is-font-valid-raw (font-raw font)))
+
+;; --- Sounds --- ;;
+
+(define-alien-type nil
+    (struct audio-stream
+            (buffer (* t))
+            (processor (* t))
+            (sample-rate unsigned-int)
+            (sample-size unsigned-int)
+            (channels unsigned-int)))
+
+(define-alien-type nil
+    (struct sound-raw
+            (stream (struct audio-stream))
+            (frame-count unsigned-int)))
+
+;; FIXME: 2025-01-27 Offsets here too?
+(defstruct (sound (:constructor @sound))
+  (raw nil :type (alien (struct sound-raw))))
+
+(define-alien-routine ("LoadSound" load-sound-raw) (struct sound-raw)
+  (file-name c-string))
+
+(defun load-sound (file-name)
+  (@sound :raw (load-sound-raw (namestring file-name))))
+
+(define-alien-routine ("UnloadSound" unload-sound-raw) void
+  (sound (struct sound-raw)))
+
+(defun unload-sound (sound)
+  (unload-sound-raw (sound-raw sound)))
+
+(define-alien-routine ("PlaySound" play-sound-raw) void
+  (sound (struct sound-raw)))
+
+(defun play-sound (sound)
+  (play-sound-raw (sound-raw sound)))

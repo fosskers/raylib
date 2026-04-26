@@ -26,23 +26,6 @@ Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
 
 // --- Sounds and Music --- //
 
-Sound *_LoadSound(const char *fileName) {
-    Sound stack = LoadSound(fileName);
-    Sound *heap = malloc(sizeof(Sound));
-    *heap = stack;
-    return heap;
-}
-
-void _UnloadSound(Sound *sound) {
-    Sound stack = *sound;
-    UnloadSound(stack);
-}
-
-void _PlaySound(Sound *sound) {
-    Sound stack = *sound;
-    PlaySound(stack);
-}
-
 Music *_LoadMusicStream(const char *fileName) {
     Music stack = LoadMusicStream(fileName);
     Music *heap = malloc(sizeof(Music));
