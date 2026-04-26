@@ -11,38 +11,17 @@ Vector2 _MakeVector2(float x, float y) {
 
 // --- Rectangles --- //
 
-Rectangle *_MakeRectangle(float x, float y, float width, float height) {
-    Rectangle *r = malloc(sizeof(Rectangle));
-
-    r->x = x;
-    r->y = y;
-    r->width = width;
-    r->height = height;
-
+Rectangle _MakeRectangle(float x, float y, float width, float height) {
+    Rectangle r = {x, y, width, height};
     return r;
 }
 
 // --- Colours --- //
 
-Color *_MakeColor(unsigned char r, unsigned char g, unsigned char b,
-                  unsigned char a) {
-    Color *c = malloc(sizeof(Color));
-
-    c->r = r;
-    c->g = g;
-    c->b = b;
-    c->a = a;
-
+Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
+                 unsigned char a) {
+    Color c = {r, g, b, a};
     return c;
-}
-
-Color *_ColorAlpha(Color *color, float alpha) {
-    Color stack = *color;
-    Color new = ColorAlpha(stack, alpha);
-    Color *heap = malloc(sizeof(Color));
-    *heap = new;
-
-    return heap;
 }
 
 // --- Textures --- //

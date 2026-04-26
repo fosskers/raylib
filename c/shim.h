@@ -10,12 +10,12 @@ Vector2 _MakeVector2(float x, float y);
 
 // --- Rectangles --- //
 
-Rectangle *_MakeRectangle(float x, float y, float width, float height);
+Rectangle _MakeRectangle(float x, float y, float width, float height);
 
 // --- Colours --- //
 
-Color *_MakeColor(unsigned char r, unsigned char g, unsigned char b,
-                  unsigned char a);
+Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
+                 unsigned char a);
 
 Color *_ColorAlpha(Color *color, float alpha);
 
