@@ -650,3 +650,11 @@ every character you intend to print in your game."
 (defun check-collision-point-rec (v r)
   "Is a point inside a rectangle?"
   (check-collision-point-rec-raw (vector2-raw v) (rectangle-raw r)))
+
+;; --- Time --- ;;
+
+(define-alien-routine ("SetTargetFPS" set-target-fps) void
+  (fps int))
+
+(define-alien-routine ("GetFrameTime" get-frame-time) float
+  "Get time in seconds for last frame drawn (delta time).")
