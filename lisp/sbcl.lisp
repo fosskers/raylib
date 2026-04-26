@@ -465,7 +465,7 @@ every character you intend to print in your game."
     (:newline)
     ,(format nil "ZOOM: ~a" (slot (camera-2d-raw c) 'zoom))))
 
-(define-alien-routine ("MakeCamera2D" make-camera-2d-raw) (struct camera-2d-raw)
+(define-alien-routine ("_MakeCamera2D" make-camera-2d-raw) (struct camera-2d-raw)
   (offset (struct vector2-raw))
   (target (struct vector2-raw))
   (rotation float)

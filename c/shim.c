@@ -22,3 +22,12 @@ Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
     Color c = {r, g, b, a};
     return c;
 }
+
+// --- Camera --- //
+
+Camera2D _MakeCamera2D(Vector2 offset, Vector2 target, float rotation,
+                       float zoom) {
+
+    Camera2D camera = {offset, target, rotation, zoom};
+    return camera;
+}
