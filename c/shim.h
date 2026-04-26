@@ -17,8 +17,6 @@ Rectangle _MakeRectangle(float x, float y, float width, float height);
 Color _MakeColor(unsigned char r, unsigned char g, unsigned char b,
                  unsigned char a);
 
-Color *_ColorAlpha(Color *color, float alpha);
-
 // --- Textures --- //
 
 Texture2D *_LoadTexture(const char *fileName);
