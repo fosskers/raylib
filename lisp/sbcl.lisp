@@ -629,3 +629,24 @@ every character you intend to print in your game."
 (declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
 (defun draw-pixel (pos-x pos-y color)
   (draw-pixel-raw pos-x pos-y (color-raw color)))
+
+;; --- Collision --- ;;
+
+(define-alien-routine ("CheckCollisionRecs" check-collision-recs-raw) (boolean 8)
+  (rec1 (struct rectangle-raw))
+  (rec2 (struct rectangle-raw)))
+
+(declaim (ftype (function (rectangle rectangle) boolean) check-collision-recs))
+(defun check-collision-recs (rec1 rec2)
+  "Are two rectangles colliding?"
+  (check-collision-recs-raw (rectangle-raw rec1)
+                            (rectangle-raw rec2)))
+
+(define-alien-routine ("CheckCollisionPointRec" check-collision-point-rec-raw) (boolean 8)
+  (point (struct vector2-raw))
+  (rec   (struct rectangle-raw)))
+
+(declaim (ftype (function (vector2 rectangle) boolean) check-collision-point-rec))
+(defun check-collision-point-rec (v r)
+  "Is a point inside a rectangle?"
+  (check-collision-point-rec-raw (vector2-raw v) (rectangle-raw r)))
