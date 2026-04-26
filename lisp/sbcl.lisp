@@ -1,3 +1,12 @@
+;; NOTE: 2026-04-26 In reworking this module to support struct-by-value passing,
+;; I briefly considered not wrapping the underlying C structures and simply
+;; yielding the raw Alien values from functions like `make-vector2'. I decided
+;; against this though, as downstream consumers (myself included!) of the
+;; library may be depending on the wrapper type, for instance for `defmethod'
+;; dispatch. While the extra struct wrapping might technically no longer be
+;; necessary, it's still the more "polite" option in this case. Nobody enjoys
+;; handling raw FFI types.
+
 (in-package :raylib)
 
 ;; --- Vectors --- ;;
@@ -7,31 +16,34 @@
             (x float)
             (y float)))
 
-(define-alien-routine ("_MakeVector2" make-vector2-raw) (* (struct vector2-raw))
+(define-alien-routine ("_MakeVector2" make-vector2-raw) (struct vector2-raw)
   (x float)
   (y float))
 
-#++
+#+nil
 (type-of (make-vector2-raw 1.0 2.0))
+#+nil
+(make-vector2-raw 1.0 2.0)
 
 (defstruct (vector2 (:constructor @vector2))
-  (pointer nil :type (alien (* (struct vector2-raw
-                                       (x single-float :offset 0)
-                                       (y single-float :offset 32))))))
+  (raw nil :type (alien (struct vector2-raw
+                                (x single-float :offset 0)
+                                (y single-float :offset 32)))))
 
 (declaim (ftype (function (&key (:x real) (:y real)) vector2) make-vector2))
 (defun make-vector2 (&key x y)
-  (let* ((ptr (make-vector2-raw (float x) (float y)))
-         (v   (@vector2 :pointer ptr)))
-    (tg:finalize v (lambda () (free-alien ptr)))))
+  (@vector2 :raw (make-vector2-raw (float x) (float y))))
+
+#+nil
+(make-vector2 :x 1 :y 2)
 
 (defmacro vector2-x (v)
   "The X slot of a `Vector2'."
-  `(slot (vector2-pointer ,v) 'x))
+  `(slot (vector2-raw ,v) 'x))
 
 (defmacro vector2-y (v)
   "The Y slot of a `Vector2'."
-  `(slot (vector2-pointer ,v) 'y))
+  `(slot (vector2-raw ,v) 'y))
 
 (defmethod print-object ((v vector2) stream)
   (print-unreadable-object (v stream :type t :identity t)
@@ -41,7 +53,7 @@
 (defmethod slynk:emacs-inspect ((v vector2))
   `("This is an FFI-wrapping of the pointer:"
     (:newline)
-    ,(format nil "~a" (vector2-pointer v))
+    ,(format nil "~a" (vector2-raw v))
     (:newline)
     (:newline)
     "The struct's underlying values are:"
@@ -50,13 +62,10 @@
     (:newline)
     ,(format nil "Y: ~a" (vector2-y v))))
 
-#++
+#+nil
 (let ((v (make-vector2 :x 1 :y 2)))
   (setf (vector2-x v) 1000.0)
   (vector2-x v))
-
-#++
-(tg:gc :full t :verbose t)
 
 ;; --- Rectangles --- ;;
 
@@ -67,39 +76,37 @@
             (width float)
             (height float)))
 
-(define-alien-routine ("_MakeRectangle" make-rectangle-raw) (* (struct rectangle-raw))
+(define-alien-routine ("_MakeRectangle" make-rectangle-raw) (struct rectangle-raw)
   (x float)
   (y float)
   (width float)
   (height float))
 
-#++
+#+nil
 (type-of (make-rectangle-raw 1.0 2.0 16.0 16.0))
 
 (defstruct (rectangle (:constructor @rectangle))
-  (pointer nil :type (alien (* (struct rectangle-raw
-                                       (x      single-float :offset 0)
-                                       (y      single-float :offset 32)
-                                       (width  single-float :offset 64)
-                                       (height single-float :offset 96))))))
+  (raw nil :type (alien (struct rectangle-raw
+                                (x      single-float :offset 0)
+                                (y      single-float :offset 32)
+                                (width  single-float :offset 64)
+                                (height single-float :offset 96)))))
 
 (declaim (ftype (function (&key (:x real) (:y real) (:width real) (:height real)) rectangle) make-rectangle))
 (defun make-rectangle (&key x y width height)
-  (let* ((pointer (make-rectangle-raw (float x) (float y) (float width) (float height)))
-         (rect    (@rectangle :pointer pointer)))
-    (tg:finalize rect (lambda () (free-alien pointer)))))
+  (@rectangle :raw (make-rectangle-raw (float x) (float y) (float width) (float height))))
 
 (defmacro rectangle-x (r)
-  `(slot (rectangle-pointer ,r) 'x))
+  `(slot (rectangle-raw ,r) 'x))
 
 (defmacro rectangle-y (r)
-  `(slot (rectangle-pointer ,r) 'y))
+  `(slot (rectangle-raw ,r) 'y))
 
 (defmacro rectangle-width (r)
-  `(slot (rectangle-pointer ,r) 'width))
+  `(slot (rectangle-raw ,r) 'width))
 
 (defmacro rectangle-height (r)
-  `(slot (rectangle-pointer ,r) 'height))
+  `(slot (rectangle-raw ,r) 'height))
 
 (defmethod print-object ((r rectangle) stream)
   (print-unreadable-object (r stream :type t :identity t)
@@ -113,7 +120,7 @@
 (defmethod slynk:emacs-inspect ((r rectangle))
   `("This is an FFI-wrapping of the pointer:"
     (:newline)
-    ,(format nil "~a" (rectangle-pointer r))
+    ,(format nil "~a" (rectangle-raw r))
     (:newline)
     (:newline)
     "The struct's underlying values are:"
@@ -126,6 +133,9 @@
     (:newline)
     ,(format nil "HEIGHT: ~a" (rectangle-height r))))
 
+#+nil
+(make-rectangle :x 1 :y 2 :width 3 :height 4)
+
 ;; --- Colour --- ;;
 
 (define-alien-type nil
@@ -135,37 +145,39 @@
             (b unsigned-char)
             (a unsigned-char)))
 
-(define-alien-routine ("_MakeColor" make-color-raw) (* (struct color-raw))
+(define-alien-routine ("_MakeColor" make-color-raw) (struct color-raw)
   (r unsigned-char)
   (g unsigned-char)
   (b unsigned-char)
   (a unsigned-char))
 
-;; FIXME: 2025-01-27 Offsets here too?
 (defstruct (color (:constructor @color))
-  (pointer nil :type alien))
+  (raw nil :type (alien (struct color-raw
+                                (r unsigned-char :offset 0)
+                                (g unsigned-char :offset 8)
+                                (b unsigned-char :offset 16)
+                                (a unsigned-char :offset 24)))))
 
 (defun make-color (&key r g b a)
-  (let* ((pointer (make-color-raw r g b a))
-         (color   (@color :pointer pointer)))
-    (tg:finalize color (lambda () (free-alien pointer)))))
+  (@color :raw (make-color-raw r g b a)))
 
-(define-alien-routine ("_ColorAlpha" color-alpha-raw) (* (struct color-raw))
-  (color (* (struct color-raw)))
+(define-alien-routine ("ColorAlpha" color-alpha-raw) (struct color-raw)
+  (color (struct color-raw))
   (alpha float))
 
 (defun color-alpha (color alpha)
-  (let* ((ptr (color-alpha-raw (color-pointer color) alpha))
-         (new (@color :pointer ptr)))
-    (tg:finalize new (lambda () (free-alien ptr)))))
+  (@color :raw (color-alpha-raw (color-raw color) alpha)))
 
 (defmethod print-object ((c color) stream)
   (print-unreadable-object (c stream :type t :identity t)
     (format stream ":R ~a :G ~a :B ~a :A ~a"
-            (slot (color-pointer c) 'r)
-            (slot (color-pointer c) 'g)
-            (slot (color-pointer c) 'b)
-            (slot (color-pointer c) 'a))))
+            (slot (color-raw c) 'r)
+            (slot (color-raw c) 'g)
+            (slot (color-raw c) 'b)
+            (slot (color-raw c) 'a))))
+
+#+nil
+(make-color :r 0 :g 0 :b 0 :a 0)
 
 ;; --- Textures --- ;;
 
@@ -177,91 +189,93 @@
             (mipmaps int)
             (format int)))
 
-;; FIXME: 2025-01-27 Offsets here too?
 (defstruct (texture (:constructor @texture))
-  (pointer nil :type alien))
+  (raw nil :type (alien (struct texture-raw
+                                (id unsigned-int :offset 0)
+                                (width   int :offset 32)
+                                (height  int :offset 64)
+                                (mipmaps int :offset 96)
+                                (format  int :offset 128)))))
+
+(defmacro texture-width (r)
+  `(slot (texture-raw ,r) 'width))
+
+(defmacro texture-height (r)
+  `(slot (texture-raw ,r) 'height))
 
 (defmethod print-object ((x texture) stream)
   (print-unreadable-object (x stream :type t :identity t)
     (format stream ":ID ~a :WIDTH ~a :HEIGHT ~a :MIPMAPS ~a :FORMAT ~a"
-            (slot (texture-pointer x) 'id)
-            (slot (texture-pointer x) 'width)
-            (slot (texture-pointer x) 'height)
-            (slot (texture-pointer x) 'mipmaps)
-            (slot (texture-pointer x) 'format))))
+            (slot (texture-raw x) 'id)
+            (slot (texture-raw x) 'width)
+            (slot (texture-raw x) 'height)
+            (slot (texture-raw x) 'mipmaps)
+            (slot (texture-raw x) 'format))))
 
-(define-alien-routine ("_LoadTexture" load-texture-raw) (* (struct texture-raw))
+(define-alien-routine ("LoadTexture" load-texture-raw) (struct texture-raw)
   (file-name c-string))
 
 (defun load-texture (file-name)
-  (let* ((pointer (load-texture-raw (namestring file-name)))
-         (texture (@texture :pointer pointer)))
-    (tg:finalize texture (lambda () (free-alien pointer)))))
+  (@texture :raw (load-texture-raw (namestring file-name))))
 
-(define-alien-routine ("_UnloadTexture" unload-texture-raw) void
-  (texture (* (struct texture-raw))))
+(define-alien-routine ("UnloadTexture" unload-texture-raw) void
+  (texture (struct texture-raw)))
 
 (defun unload-texture (texture)
-  (unload-texture-raw (texture-pointer texture)))
+  (unload-texture-raw (texture-raw texture)))
 
-#++
+#+nil
 (progn
   (init-window 300 300 "hello!")
-  (let ((p (load-texture-raw "assets/logo.png")))
+  (let ((p (load-texture-raw "test.png")))
     (format t "~a~%" (slot p 'id))
     (format t "~a~%" (slot p 'width))
     (format t "~a~%" (slot p 'height)))
   (close-window))
 
-(defmacro texture-width (r)
-  `(slot (texture-pointer ,r) 'width))
-
-(defmacro texture-height (r)
-  `(slot (texture-pointer ,r) 'height))
-
-(define-alien-routine ("_IsTextureValid" is-texture-valid-raw) (boolean 8)
-  (texture (* (struct texture-raw))))
+(define-alien-routine ("IsTextureValid" is-texture-valid-raw) (boolean 8)
+  (texture (struct texture-raw)))
 
 (declaim (ftype (function (texture) boolean) is-texture-valid))
 (defun is-texture-valid (texture)
   "Did a given `texture' load correctly?"
-  (is-texture-valid-raw (texture-pointer texture)))
+  (is-texture-valid-raw (texture-raw texture)))
 
-(define-alien-routine ("_DrawTexture" draw-texture-raw) void
-  (texture (* (struct texture-raw)))
+(define-alien-routine ("DrawTexture" draw-texture-raw) void
+  (texture (struct texture-raw))
   (pos-x int)
   (pos-y int)
-  (tint (* (struct color-raw))))
+  (tint (struct color-raw)))
 
 (declaim (ftype (function (texture fixnum fixnum color) null) draw-texture))
 (defun draw-texture (texture pos-x pos-y tint)
-  (draw-texture-raw (texture-pointer texture)
+  (draw-texture-raw (texture-raw texture)
                     pos-x pos-y
-                    (color-pointer tint)))
+                    (color-raw tint)))
 
-(define-alien-routine ("_DrawTextureV" draw-texture-v-raw) void
-  (texture  (* (struct texture-raw)))
-  (position (* (struct vector2-raw)))
-  (tint     (* (struct color-raw))))
+(define-alien-routine ("DrawTextureV" draw-texture-v-raw) void
+  (texture  (struct texture-raw))
+  (position (struct vector2-raw))
+  (tint     (struct color-raw)))
 
 (declaim (ftype (function (texture vector2 color) null) draw-texture-v))
 (defun draw-texture-v (texture position tint)
-  (draw-texture-v-raw (texture-pointer texture)
-                      (vector2-pointer position)
-                      (color-pointer tint)))
+  (draw-texture-v-raw (texture-raw texture)
+                      (vector2-raw position)
+                      (color-raw tint)))
 
-(define-alien-routine ("_DrawTextureRec" draw-texture-rec-raw) void
-  (texture  (* (struct texture-raw)))
-  (source   (* (struct rectangle-raw)))
-  (position (* (struct vector2-raw)))
-  (tint     (* (struct color-raw))))
+(define-alien-routine ("DrawTextureRec" draw-texture-rec-raw) void
+  (texture  (struct texture-raw))
+  (source   (struct rectangle-raw))
+  (position (struct vector2-raw))
+  (tint     (struct color-raw)))
 
 (declaim (ftype (function (texture rectangle vector2 color) null) draw-texture-rec))
 (defun draw-texture-rec (texture source position tint)
-  (draw-texture-rec-raw (texture-pointer texture)
-                        (rectangle-pointer source)
-                        (vector2-pointer position)
-                        (color-pointer tint)))
+  (draw-texture-rec-raw (texture-raw texture)
+                        (rectangle-raw source)
+                        (vector2-raw position)
+                        (color-raw tint)))
 
 ;; --- Fonts --- ;;
 
@@ -274,29 +288,26 @@
             (recs (* t))
             (glyphs (* t))))
 
+;; FIXME: 2026-04-26 Offsets?
 (defstruct (font (:constructor @font))
-  (pointer nil :type alien))
+  (raw nil :type (alien (struct font-raw))))
 
-(define-alien-routine ("_GetFontDefault" get-font-default-raw) (* (struct font-raw)))
+(define-alien-routine ("GetFontDefault" get-font-default-raw) (struct font-raw))
 
 (declaim (ftype (function () font) get-font-default))
 (defun get-font-default ()
   "Get the default Raylib font."
-  (let* ((pointer (get-font-default-raw))
-         (font (@font :pointer pointer)))
-    (tg:finalize font (lambda () (free-alien pointer)))))
+  (@font :raw (get-font-default-raw)))
 
-(define-alien-routine ("_LoadFont" load-font-raw) (* (struct font-raw))
+(define-alien-routine ("LoadFont" load-font-raw) (struct font-raw)
   (file-name c-string))
 
 (declaim (ftype (function ((or string pathname)) font) load-font))
 (defun load-font (file-name)
   "Load a font from a file into GPU memory."
-  (let* ((pointer (load-font-raw (namestring file-name)))
-         (font (@font :pointer pointer)))
-    (tg:finalize font (lambda () (free-alien pointer)))))
+  (@font :raw (load-font-raw (namestring file-name))))
 
-(define-alien-routine ("_LoadFontEx" load-font-ex-raw) (* (struct font-raw))
+(define-alien-routine ("LoadFontEx" load-font-ex-raw) (struct font-raw)
   (file-name c-string)
   (font-size int)
   (codepoints (* int))
@@ -312,28 +323,27 @@ every character you intend to print in your game."
     ;; FIXME: 2025-08-07 There may be a way to avoid this manual copy.
     (loop :for i fixnum :from 0 :below count
           :do (setf (deref array i) (aref codepoints i)))
-    (let* ((point (load-font-ex-raw (namestring file-name) font-size array count))
-           (font  (@font :pointer point)))
+    (let ((font (@font :raw (load-font-ex-raw (namestring file-name) font-size array count))))
       (free-alien array)
-      (tg:finalize font (lambda () (free-alien point))))))
+      font)))
 
-(define-alien-routine ("_UnloadFont" unload-font-raw) void
-  (font (* (struct font-raw))))
+(define-alien-routine ("UnloadFont" unload-font-raw) void
+  (font (struct font-raw)))
 
 (declaim (ftype (function (font)) unload-font))
 (defun unload-font (font)
   "Unload a font from GPU memory."
-  (unload-font-raw (font-pointer font)))
+  (unload-font-raw (font-raw font)))
 
-(define-alien-routine ("_IsFontValid" is-font-valid-raw) (boolean 8)
-  (font (* (struct font-raw))))
+(define-alien-routine ("IsFontValid" is-font-valid-raw) (boolean 8)
+  (font (struct font-raw)))
 
 (declaim (ftype (function (font) boolean) is-font-valid))
 (defun is-font-valid (font)
   "Did a given `font' load correctly?"
-  (is-font-valid-raw (font-pointer font)))
+  (is-font-valid-raw (font-raw font)))
 
-;; --- Sounds and Music --- ;;
+;; --- Sounds --- ;;
 
 (define-alien-type nil
     (struct audio-stream
@@ -350,27 +360,27 @@ every character you intend to print in your game."
 
 ;; FIXME: 2025-01-27 Offsets here too?
 (defstruct (sound (:constructor @sound))
-  (pointer nil :type alien))
+  (raw nil :type (alien (struct sound-raw))))
 
-(define-alien-routine ("_LoadSound" load-sound-raw) (* (struct sound-raw))
+(define-alien-routine ("LoadSound" load-sound-raw) (struct sound-raw)
   (file-name c-string))
 
 (defun load-sound (file-name)
-  (let* ((pointer (load-sound-raw (namestring file-name)))
-         (sound   (@sound :pointer pointer)))
-    (tg:finalize sound (lambda () (free-alien pointer)))))
+  (@sound :raw (load-sound-raw (namestring file-name))))
 
-(define-alien-routine ("_UnloadSound" unload-sound-raw) void
-  (sound (* (struct sound-raw))))
+(define-alien-routine ("UnloadSound" unload-sound-raw) void
+  (sound (struct sound-raw)))
 
 (defun unload-sound (sound)
-  (unload-sound-raw (sound-pointer sound)))
+  (unload-sound-raw (sound-raw sound)))
 
-(define-alien-routine ("_PlaySound" play-sound-raw) void
-  (sound (* (struct sound-raw))))
+(define-alien-routine ("PlaySound" play-sound-raw) void
+  (sound (struct sound-raw)))
 
 (defun play-sound (sound)
-  (play-sound-raw (sound-pointer sound)))
+  (play-sound-raw (sound-raw sound)))
+
+;; --- Music --- ;;
 
 (define-alien-type nil
     (struct music-raw
@@ -382,42 +392,40 @@ every character you intend to print in your game."
 
 ;; FIXME: 2025-01-27 Offsets here too?
 (defstruct (music (:constructor @music))
-  (pointer nil :type alien))
+  (raw nil :type (alien (struct music-raw))))
 
 (defmacro music-looping (m)
-  `(slot (music-pointer ,m) 'looping))
+  `(slot (music-raw ,m) 'looping))
 
-(define-alien-routine ("_LoadMusicStream" load-music-stream-raw) (* (struct music-raw))
+(define-alien-routine ("LoadMusicStream" load-music-stream-raw) (struct music-raw)
   (file-name c-string))
 
 (defun load-music-stream (file-name)
-  (let* ((pointer (load-music-stream-raw (namestring file-name)))
-         (music   (@music :pointer pointer)))
-    (tg:finalize music (lambda () (free-alien pointer)))))
+  (@music :raw (load-music-stream-raw (namestring file-name))))
 
-(define-alien-routine ("_UnloadMusicStream" unload-music-stream-raw) void
-  (music (* (struct music-raw))))
+(define-alien-routine ("UnloadMusicStream" unload-music-stream-raw) void
+  (music (struct music-raw)))
 
 (defun unload-music-stream (music)
-  (unload-music-stream-raw (music-pointer music)))
+  (unload-music-stream-raw (music-raw music)))
 
-(define-alien-routine ("_IsMusicStreamPlaying" is-music-stream-playing-raw) (boolean 8)
-  (music (* (struct music-raw))))
+(define-alien-routine ("IsMusicStreamPlaying" is-music-stream-playing-raw) (boolean 8)
+  (music (struct music-raw)))
 
 (defun is-music-stream-playing (music)
-  (is-music-stream-playing-raw (music-pointer music)))
+  (is-music-stream-playing-raw (music-raw music)))
 
-(define-alien-routine ("_PlayMusicStream" play-music-stream-raw) void
-  (music (* (struct music-raw))))
+(define-alien-routine ("PlayMusicStream" play-music-stream-raw) void
+  (music (struct music-raw)))
 
 (defun play-music-stream (music)
-  (play-music-stream-raw (music-pointer music)))
+  (play-music-stream-raw (music-raw music)))
 
-(define-alien-routine ("_UpdateMusicStream" update-music-stream-raw) void
-  (music (* (struct music-raw))))
+(define-alien-routine ("UpdateMusicStream" update-music-stream-raw) void
+  (music (struct music-raw)))
 
 (defun update-music-stream (music)
-  (update-music-stream-raw (music-pointer music)))
+  (update-music-stream-raw (music-raw music)))
 
 ;; --- Camera --- ;;
 
@@ -430,21 +438,21 @@ every character you intend to print in your game."
 
 ;; FIXME: 2025-01-27 Offsets here too?
 (defstruct (camera-2d (:constructor @camera-2d))
-  (pointer nil :type alien))
+  (raw nil :type (alien (struct camera-2d-raw))))
 
 (defmethod print-object ((c camera-2d) stream)
   (print-unreadable-object (c stream :type t :identity t)
     (format stream ":OFFSET ~a :TARGET ~a :ROTATION ~a :ZOOM ~a"
             (camera-2d-offset c)
             (camera-2d-target c)
-            (slot (camera-2d-pointer c) 'rotation)
-            (slot (camera-2d-pointer c) 'zoom))))
+            (slot (camera-2d-raw c) 'rotation)
+            (slot (camera-2d-raw c) 'zoom))))
 
 #+slynk
 (defmethod slynk:emacs-inspect ((c camera-2d))
   `("This is an FFI-wrapping of the pointer:"
     (:newline)
-    ,(format nil "~a" (camera-2d-pointer c))
+    ,(format nil "~a" (camera-2d-raw c))
     (:newline)
     (:newline)
     "The struct's underlying values are:"
@@ -453,51 +461,39 @@ every character you intend to print in your game."
     (:newline)
     ,(format nil "TARGET: ~a" (camera-2d-target c))
     (:newline)
-    ,(format nil "ROTATION: ~a" (slot (camera-2d-pointer c) 'rotation))
+    ,(format nil "ROTATION: ~a" (slot (camera-2d-raw c) 'rotation))
     (:newline)
-    ,(format nil "ZOOM: ~a" (slot (camera-2d-pointer c) 'zoom))))
+    ,(format nil "ZOOM: ~a" (slot (camera-2d-raw c) 'zoom))))
 
-(define-alien-routine ("_MakeCamera2D" make-camera-2d-raw) (* (struct camera-2d-raw))
-  (offset (* (struct vector2-raw)))
-  (target (* (struct vector2-raw)))
+(define-alien-routine ("_MakeCamera2D" make-camera-2d-raw) (struct camera-2d-raw)
+  (offset (struct vector2-raw))
+  (target (struct vector2-raw))
   (rotation float)
   (zoom float))
 
 (declaim (ftype (function (&key (:offset vector2) (:target vector2) (:rotation real) (:zoom real)) camera-2d) make-camera-2d))
 (defun make-camera-2d (&key offset target rotation zoom)
-  (let* ((pointer (make-camera-2d-raw (vector2-pointer offset)
-                                      (vector2-pointer target)
-                                      (float rotation)
-                                      (float zoom)))
-         (camera (@camera-2d :pointer pointer)))
-    (tg:finalize camera (lambda () (free-alien pointer)))))
+  (@camera-2d :raw (make-camera-2d-raw (vector2-raw offset)
+                                       (vector2-raw target)
+                                       (float rotation)
+                                       (float zoom))))
 
-;; NOTE: 2025-03-04 So far these are the only functions like this, where we need
-;; to wrap a pointer but NOT have it cleaned up by `trivial-garbage'. That is
-;; because we're only borrowing it in order to do some updates to the underlying
-;; vector.
-;;
-;; Later, if I don't like this struct wrapping overhead, I can write a custom
-;; shim function that does the update "inline".
+;; NOTE: 2026-04-26 This extra wrapping is still wasteful.
 (defun camera-2d-offset (camera)
-  (@vector2 :pointer (sap-alien (alien-sap (slot (camera-2d-pointer camera) 'offset))
-                                (* (struct vector2-raw)))))
+  (@vector2 :raw (slot (camera-2d-raw camera) 'offset)))
 
 (defun camera-2d-target (camera)
-  (@vector2 :pointer (sap-alien (alien-sap (slot (camera-2d-pointer camera) 'target))
-                                (* (struct vector2-raw)))))
+  (@vector2 :raw (slot (camera-2d-raw camera) 'target)))
 
-(define-alien-routine ("_GetWorldToScreen2D" get-world-to-screen-2d-raw) (* (struct vector2-raw))
-  (position (* (struct vector2-raw)))
-  (camera   (* (struct camera-2d-raw))))
+(define-alien-routine ("GetWorldToScreen2D" get-world-to-screen-2d-raw) (struct vector2-raw)
+  (position (struct vector2-raw))
+  (camera   (struct camera-2d-raw)))
 
 (declaim (ftype (function (vector2 camera-2d) vector2) get-world-to-screen-2d))
 (defun get-world-to-screen-2d (position camera)
   "Get the screen space position for a 2d camera world space position."
-  (let* ((pointer (get-world-to-screen-2d-raw (vector2-pointer position)
-                                              (camera-2d-pointer camera)))
-         (vector (@vector2 :pointer pointer)))
-    (tg:finalize vector (lambda () (free-alien pointer)))))
+  (@vector2 :raw (get-world-to-screen-2d-raw (vector2-raw position)
+                                             (camera-2d-raw camera))))
 
 ;; --- Keyboard and Gamepad --- ;;
 
@@ -554,104 +550,106 @@ every character you intend to print in your game."
 
 (define-alien-routine ("WindowShouldClose" window-should-close) (boolean 8))
 
+;; --- Drawing --- ;;
+
 (define-alien-routine ("BeginDrawing" begin-drawing) void)
 
 (define-alien-routine ("EndDrawing" end-drawing) void)
 
-(define-alien-routine ("_BeginMode2D" begin-mode-2d-raw) void
-  (camera (* (struct camera-2d-raw))))
+(define-alien-routine ("BeginMode2D" begin-mode-2d-raw) void
+  (camera (struct camera-2d-raw)))
 
 (defun begin-mode-2d (camera)
-  (begin-mode-2d-raw (camera-2d-pointer camera)))
+  (begin-mode-2d-raw (camera-2d-raw camera)))
 
 (define-alien-routine ("EndMode2D" end-mode-2d) void)
 
-(define-alien-routine ("_ClearBackground" clear-background-raw) void
-  (color (* (struct color-raw))))
+(define-alien-routine ("ClearBackground" clear-background-raw) void
+  (color (struct color-raw)))
 
 (defun clear-background (color)
-  (clear-background-raw (color-pointer color)))
+  (clear-background-raw (color-raw color)))
 
 (define-alien-routine ("DrawFPS" draw-fps) void
   (pos-x int)
   (pos-y int))
 
-(define-alien-routine ("_DrawText" draw-text-raw) void
+(define-alien-routine ("DrawText" draw-text-raw) void
   (text c-string)
   (pos-x int)
   (pos-y int)
   (font-size int)
-  (color (* (struct color-raw))))
+  (color (struct color-raw)))
 
 (declaim (ftype (function (string fixnum fixnum fixnum color) null) draw-text))
 (defun draw-text (text pos-x pos-y font-size color)
   "Draw text using the default font."
-  (draw-text-raw text pos-x pos-y font-size (color-pointer color)))
+  (draw-text-raw text pos-x pos-y font-size (color-raw color)))
 
-(define-alien-routine ("_DrawTextEx" draw-text-ex-raw) void
-  (font (* (struct font-raw)))
+(define-alien-routine ("DrawTextEx" draw-text-ex-raw) void
+  (font (struct font-raw))
   (text c-string)
-  (position (* (struct vector2-raw)))
+  (position (struct vector2-raw))
   (font-size single-float)
   (spacing single-float)
-  (tint (* (struct color-raw))))
+  (tint (struct color-raw)))
 
 (declaim (ftype (function (font string vector2 real real color)) draw-text-ex))
 (defun draw-text-ex (font text position font-size spacing tint)
   "Draw text using a `font' and additional parameters."
-  (draw-text-ex-raw (font-pointer font) text (vector2-pointer position) (float font-size) (float spacing) (color-pointer tint)))
+  (draw-text-ex-raw (font-raw font) text (vector2-raw position) (float font-size) (float spacing) (color-raw tint)))
 
-(define-alien-routine ("_DrawRectangle" draw-rectangle-raw) void
+(define-alien-routine ("DrawRectangle" draw-rectangle-raw) void
   (pos-x int)
   (pos-y int)
   (width int)
   (height int)
-  (color (* (struct color-raw))))
+  (color (struct color-raw)))
 
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-rectangle))
 (defun draw-rectangle (pos-x pos-y width height color)
-  (draw-rectangle-raw pos-x pos-y width height (color-pointer color)))
+  (draw-rectangle-raw pos-x pos-y width height (color-raw color)))
 
-(define-alien-routine ("_DrawLine" draw-line-raw) void
+(define-alien-routine ("DrawLine" draw-line-raw) void
   (start-pos-x int)
   (start-pos-y int)
   (end-pos-x int)
   (end-pos-y int)
-  (color (* (struct color-raw))))
+  (color (struct color-raw)))
 
 (declaim (ftype (function (fixnum fixnum fixnum fixnum color) null) draw-line))
 (defun draw-line (start-pos-x start-pos-y end-pos-x end-pos-y color)
-  (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-pointer color)))
+  (draw-line-raw start-pos-x start-pos-y end-pos-x end-pos-y (color-raw color)))
 
-(define-alien-routine ("_DrawPixel" draw-pixel-raw) void
+(define-alien-routine ("DrawPixel" draw-pixel-raw) void
   (pos-x int)
   (pos-y int)
-  (color (* (struct color-raw))))
+  (color (struct color-raw)))
 
 (declaim (ftype (function (fixnum fixnum color) null) draw-pixel))
 (defun draw-pixel (pos-x pos-y color)
-  (draw-pixel-raw pos-x pos-y (color-pointer color)))
+  (draw-pixel-raw pos-x pos-y (color-raw color)))
 
 ;; --- Collision --- ;;
 
-(define-alien-routine ("_CheckCollisionRecs" check-collision-recs-raw) (boolean 8)
-  (rec1 (* (struct rectangle-raw)))
-  (rec2 (* (struct rectangle-raw))))
+(define-alien-routine ("CheckCollisionRecs" check-collision-recs-raw) (boolean 8)
+  (rec1 (struct rectangle-raw))
+  (rec2 (struct rectangle-raw)))
 
 (declaim (ftype (function (rectangle rectangle) boolean) check-collision-recs))
 (defun check-collision-recs (rec1 rec2)
   "Are two rectangles colliding?"
-  (check-collision-recs-raw (rectangle-pointer rec1)
-                            (rectangle-pointer rec2)))
+  (check-collision-recs-raw (rectangle-raw rec1)
+                            (rectangle-raw rec2)))
 
-(define-alien-routine ("_CheckCollisionPointRec" check-collision-point-rec-raw) (boolean 8)
-  (point (* (struct vector2-raw)))
-  (rec   (* (struct rectangle-raw))))
+(define-alien-routine ("CheckCollisionPointRec" check-collision-point-rec-raw) (boolean 8)
+  (point (struct vector2-raw))
+  (rec   (struct rectangle-raw)))
 
 (declaim (ftype (function (vector2 rectangle) boolean) check-collision-point-rec))
 (defun check-collision-point-rec (v r)
   "Is a point inside a rectangle?"
-  (check-collision-point-rec-raw (vector2-pointer v) (rectangle-pointer r)))
+  (check-collision-point-rec-raw (vector2-raw v) (rectangle-raw r)))
 
 ;; --- Time --- ;;
 
