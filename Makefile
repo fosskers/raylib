@@ -42,3 +42,14 @@ lib/lisp-raylib.dll:
 lib/lisp-raylib-shim.dll: c/shim.c c/raylib.h
 	cd c && x86_64-w64-mingw32-gcc -L"../lib" -llisp-raylib -O3 -fPIC -shared -o lisp-raylib-shim.dll shim.c
 	mv c/lisp-raylib-shim.dll lib/
+
+# --- MacOS --- #
+
+macos: lib/ lib/liblisp-raylib.dylib lib/liblisp-raylib-shim.dylib raylib.h shim.h
+
+lib/liblisp-raylib.dylib:
+	cd vendored/raylib-c/src/ && $(MAKE) PLATFORM=$(PLATFORM)
+	cp vendored/raylib-c/src/liblisp-raylib.5.5.0.dylib lib/liblisp-raylib.dylib
+
+lib/liblisp-raylib-shim.dylib: c/shim.c lib/liblisp-raylib.dylib
+	$(CC) -O3 -fPIC -dynamiclib -o lib/liblisp-raylib-shim.dylib c/shim.c -Ivendored/raylib-c/src/ -Llib/ -llisp-raylib -Wl,-rpath,@loader_path

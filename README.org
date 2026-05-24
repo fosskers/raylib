@@ -328,5 +328,24 @@ clean:
 
 This copies the underlying =.so= files into a =lib/= local to your application, so
 that when the =raylib= system loads, it will find them where it expects.
+** macOS
+On macOS the window must be created on the main thread. This can be accomplished
+using `trivial-main-thread` with something like:
+
+#+begin_src common-lisp
+  (defun launch ()
+    (raylib:init-window +screen-width+ +screen-height+ "My Game")
+    ;; Game loop, drawing etc ...
+    )
+
+  (defun main ()
+    ,#+darwin
+    (trivial-main-thread:with-body-in-main-thread ()
+      ,#+sbcl
+      (sb-int:set-floating-point-modes :traps '())
+      (launch))
+    #-darwin
+    (launch))
+#+end_src
 
 ** Creating Release Builds

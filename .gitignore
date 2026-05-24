@@ -1,4 +1,7 @@
 *.fasl
 *.fas
 *.so
+*.dylib
 lib/
+raylib.h
+shim.h
